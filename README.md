@@ -36,7 +36,8 @@ from pydantic_pkgr import AptProvider
 
 # Example: Install curl using the apt provider
 apt = AptProvider()
-curl = apt.install(bin_name='curl')
+curl = apt.install('curl')
+
 print(curl.loaded_provider)                # 'apt'
 print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
 print(curl.loaded_version)                 # SemVer('7.81.0')
@@ -46,20 +47,19 @@ curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) l
 ```python
 from pydantic_pkgr import Binary, BinName, BinProvider
 
-# Example: Define a re-usable Binary type with multiple supported install methods
-class CurlBinary(Binary):
-    name: BinName = 'curl'
-    providers_supported: list[BinProvider] = [BrewProvider(), EnvProvider()]
+# Example: Create a re-usable curl Binary object that defines its install methods
+curl = Binary(name='curl', providers=[BrewProvider(), EnvProvider()])
+curl = curl.install()
 
-curl = CurlBinary().load_or_install()      # Example: Check for existing binary, install if missing
 print(curl.loaded_provider)                # 'brew'
 print(curl.loaded_abspath)                 # Path('/opt/homebrew/bin/curl')
 print(curl.loaded_version)                 # SemVer('8.4.0')
 curl.exec(['--version'])                   # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
+```
 
+```python
 print(curl.model_dump_json())              # ... everything can also be dumped/loaded as json
-print(curl.model_json_schema())            # ... view OpenAPI-ready JSON schema
-...
+print(curl.model_json_schema())            # ... all types provide OpenAPI-ready JSON schemas
 ```
 
 ### Supported Package Managers

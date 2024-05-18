@@ -207,9 +207,10 @@ from pydantic_pkgr import SemVer
 
 ### Example: Use the SemVer type directly for parsing & verifying version strings
 
-SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123')  # SemVer('124.0.6367')
+SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123')  # SemVer(124, 0, 6367')
 SemVer.parse('2024.04.05)                                           # SemVer(2024, 4, 5)
 SemVer.parse('1.9+beta')                                            # SemVer(1, 9, 0)
+str(SemVer(1, 9, 0))                                                # '1.9.0'
 ```
 
 <br/>

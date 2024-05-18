@@ -34,13 +34,13 @@ from pydantic_pkgr import AptProvider, Binary, BinName, BinProvider
 apt = AptProvider()
 curl = apt.load_or_install(bin_name='curl')
 print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
-print(curl.loaded_version)                 # SemVer('8.4.0')
+print(curl.loaded_version)                 # SemVer('7.81.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 
 # Example: Create a re-usable Binary definition supporting multiple install methods
 class CurlBinary(Binary):
     name: BinName = 'curl'
-    providers_supported: list[BinProvider] = [AptProvider(), BrewProvider(), EnvProvider()]
+    providers_supported: list[BinProvider] = [BrewProvider(), AptProvider(), EnvProvider()]
 
 curl = CurlBinary().install()
 print(curl.loaded_provider)                # 'brew'

@@ -13,7 +13,7 @@ from subprocess import run, PIPE, CompletedProcess
 
 from pydantic_core import ValidationError
 
-from pydantic import BaseModel, Field, model_validator, computed_field, field_validator, validate_call, field_serializer
+from pydantic import BaseModel, Field, model_validator, computed_field, field_validator, validate_call, field_serializer, ConfigDict
 
 from .semver import SemVer
 from .binprovider import (
@@ -34,6 +34,8 @@ from .binprovider import (
 
 
 class Binary(BaseModel):
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+
     name: BinName
     description: str = Field(default='')
 

@@ -207,23 +207,26 @@ SemVer.parse('1.9+beta')                                            # SemVer(1, 
 
 ## Django Usage
 
-The pydantic ecosystem allows us to get auto-generated, type-checked form widgets 
-for editing `BinProvider` and `Binary` data without too much effort.
+The pydantic ecosystem help us get auto-generated, type-checked Django fields & forms 
+that support `BinProvider` and `Binary`.
 
 
 > For the full experience, we recommend installing these 3 excellent packages:
 > 
 > - [`django-admin-data-views`](https://github.com/MrThearMan/django-admin-data-views)
 > - [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field)
-> - [`django-jsonform`](https://django-jsonform.readthedocs.io/)
+> - [`django-jsonform`](https://django-jsonform.readthedocs.io/)  
 > `pip install pydantic-pkgr django-admin-data-views django-pydantic-field django-jsonform`
 
 <br/>
 
 ### Django Model Usage: Store `BinProvider` and `Binary` entries in your model fields
 
-- [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field)
+```bash
+pip install django-pydantic-field
+```
 
+- [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field)
 
 
 Usage in your `models.py`:
@@ -253,6 +256,12 @@ assert obj.optional_binaries[0].provider == DEFAULT_PROVIDER
 
 
 ### Django Admin Usage: Show read-only list of BinProviders and Binaries in Admin UI
+
+```bash
+pip install pydantic-pkgr django-admin-data-views
+```
+
+- [`django-admin-data-views`](https://github.com/MrThearMan/django-admin-data-views)
 
 Then add this to your `settings.py`:
 ```python
@@ -324,7 +333,7 @@ custom_admin.get_urls               = get_urls(custom_admin.get_urls).__get__(cu
 
 Install `django-jsonform` to get auto-generated Forms for editing BinProvider, Binary, etc. data
 ```bash
-pip install django-jsonform
+pip install pydantic-pkgr django-pydantic-field django-jsonform
 ```
 
 `admin.py`:

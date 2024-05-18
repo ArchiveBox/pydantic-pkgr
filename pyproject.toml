@@ -1,0 +1,99 @@
+[project]
+name = "pydantic-pkgr"
+version = "0.1.0"
+description = "System package manager APIs in strongly typed Python"
+authors = [
+    {name = "Nick Sweeting", email = "pydantic-pkgr-pyproject-toml@sweeting.me"},
+]
+requires-python = ">=3.10"
+license = {text = "MIT"}
+platform = "py3-none-any"
+dependencies = [
+    "typing-extensions>=4.11.0",
+    "pydantic>=2.7.1",
+    "pydantic-core>=2.18.2",
+]
+
+packages = [
+    { include = "pydantic_pkgr" },
+]
+readme = "README.md"
+homepage = "https://github.com/ArchiveBox/pydantic-pkgr"
+repository = "https://github.com/ArchiveBox/pydantic-pkgr"
+keywords = [
+    "pydantic",
+    "packagemanager",
+    "apt",
+    "brew",
+    "pip",
+    "system",
+    "dependencies",
+]
+include = [
+    "README.md",
+    "LICENSE",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Django",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.1",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.0",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+]
+exclude = [
+    "tests",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "django>=4.0",
+    "mypy>=1.10.0",
+    "pyright",
+    "django-stubs>=5.0.0"
+]
+
+[tool.mypy]
+mypy_path = "pydantic_pkgr"
+python_version = "3.10"
+warn_return_any = "True"
+warn_unused_configs = "True"
+plugins = [
+    "mypy_django_plugin.main",
+]
+
+[tool.pyright]
+include = ["pydantic_pkgr"]
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/migrations",
+]
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+
+
+[project.urls]
+Homepage = "https://github.com/ArchiveBox/pydantic-pkgr"
+Source = "https://github.com/ArchiveBox/pydantic-pkgr"
+Documentation = "https://github.com/ArchiveBox/pydantic-pkgr"
+"Bug Tracker" = "https://github.com/ArchiveBox/pydantic-pkgr/issues"
+Changelog = "https://github.com/ArchiveBox/pydantic-pkgr/releases"
+Donate = "https://github.com/ArchiveBox/ArchiveBox/wiki/Donations"

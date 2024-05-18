@@ -248,6 +248,8 @@ Usage in your `models.py`:
 from django.db import models
 from django_pydantic_field import SchemaField
 
+from pydantic_pkgr import BinProvider, EnvProvider, Binary
+
 DEFAULT_PROVIDER = EnvProvider()
 
 class MyModel(models.Model):
@@ -268,6 +270,7 @@ assert obj.favorite_binprovider == DEFAULT_PROVIDER
 assert obj.optional_binaries[0].provider == DEFAULT_PROVIDER
 ```
 
+<br/>
 
 ### Django Admin Usage: Show read-only list of BinProviders and Binaries in Admin UI
 
@@ -282,6 +285,7 @@ INSTALLED_APPS = [
     # ...
 
     'pydantic_pkgr'
+
     'admin_data_views'
 
     # ...
@@ -340,6 +344,7 @@ custom_admin.get_urls               = get_urls(custom_admin.get_urls).__get__(cu
 </code></pre>
 </details>
 
+<br/>
 
 ### Django Admin Usage: JSONFormWidget for editing `BinProvider` and `Binary` data
 

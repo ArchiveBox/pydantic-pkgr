@@ -196,39 +196,8 @@ print(custom_docker.loaded_version)       # '5.0.2'
 print(custom_docker.is_valid)             # True
 ```
 
-### 
-### Example: Implement your own package manager behavior by subclassing BinProvider
+### `SemVer`
 
-class CargoProvider(BinProvider):
-    name: BinProviderName = 'cargo'
-    
-    def on_setup_paths(self):
-        if '~/.cargo/bin' not in sys.path:
-            sys.path.append('~/.cargo/bin')
-
-    def on_install(self, bin_name: str, **context):
-        subdeps = self.on_get_subdeps(bin_name)
-        installer_process = run(['cargo', 'install', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
-        assert installer_process.returncode == 0
-
-    def on_get_subdeps(self, bin_name: BinName, **context) -> InstallStr:
-        # optionally remap bin_names to strings passed to installer 
-        # e.g. 'yt-dlp' -> 'yt-dlp ffmpeg libcffi libaac'
-        return bin_name
-
-    def on_get_abspath(self, bin_name: str, **context) -> Path | None:
-        self.on_setup_paths()
-        return Path(os.which(bin_name))
-
-    def on_get_version(self, bin_name: BinName, **context) -> SemVer | None:
-        self.on_setup_paths()
-        return SemVer(run([bin_name, '--version'], stdout=PIPE).stdout.decode())
-
-cargo = CargoProvider()
-cargo.install(bin_name='ripgrep')
-```
-
-### `SemVer` 
 ```python
 ### Example: Use the SemVer type directly for parsing & verifying version strings
 
@@ -237,7 +206,11 @@ SemVer.parse('2024.04.05)                                           # SemVer(202
 SemVer.parse('1.9+beta')                                            # SemVer(1, 9, 0)
 ```
 
+<br/>
+
 ---
+
+<br/>
 
 
 ## Django Usage
@@ -261,7 +234,7 @@ that support `BinProvider` and `Binary`.
 pip install django-pydantic-field
 ```
 
-- [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field)
+*Fore more info see the [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) docs...*
 
 
 Usage in your `models.py`:
@@ -295,8 +268,7 @@ assert obj.optional_binaries[0].provider == DEFAULT_PROVIDER
 ```bash
 pip install pydantic-pkgr django-admin-data-views
 ```
-
-- [`django-admin-data-views`](https://github.com/MrThearMan/django-admin-data-views)
+*For more info see the [`django-admin-data-views`](https://github.com/MrThearMan/django-admin-data-views) docs...*
 
 Then add this to your `settings.py`:
 ```python
@@ -370,6 +342,7 @@ Install `django-jsonform` to get auto-generated Forms for editing BinProvider, B
 ```bash
 pip install pydantic-pkgr django-pydantic-field django-jsonform
 ```
+*For more info see the [`django-jsonform`](https://django-jsonform.readthedocs.io/) docs...*
 
 `admin.py`:
 ```python
@@ -382,25 +355,48 @@ class MyModelAdmin(admin.ModelAdmin):
 
 admin.site.register(MyModel, MyModelAdmin)
 ```
+
 <br/>
 
 ---
 
 <br/>
 
-## API Reference
 
-### `BinProvider`
+## Examples
 
-[WIP]
+### Advanced: Implement your own package manager behavior by subclassing BinProvider
 
-### `Binary`
+```python
+class CargoProvider(BinProvider):
+    name: BinProviderName = 'cargo'
+    
+    def on_setup_paths(self):
+        if '~/.cargo/bin' not in sys.path:
+            sys.path.append('~/.cargo/bin')
 
-[WIP]
+    def on_install(self, bin_name: str, **context):
+        subdeps = self.on_get_subdeps(bin_name)
+        installer_process = run(['cargo', 'install', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
+        assert installer_process.returncode == 0
 
-### `SemVer`
+    def on_get_subdeps(self, bin_name: BinName, **context) -> InstallStr:
+        # optionally remap bin_names to strings passed to installer 
+        # e.g. 'yt-dlp' -> 'yt-dlp ffmpeg libcffi libaac'
+        return bin_name
 
-[WIP]
+    def on_get_abspath(self, bin_name: str, **context) -> Path | None:
+        self.on_setup_paths()
+        return Path(os.which(bin_name))
+
+    def on_get_version(self, bin_name: BinName, **context) -> SemVer | None:
+        self.on_setup_paths()
+        return SemVer(run([bin_name, '--version'], stdout=PIPE).stdout.decode())
+
+cargo = CargoProvider()
+cargo.install(bin_name='ripgrep')
+```
+
 
 <br/>
 

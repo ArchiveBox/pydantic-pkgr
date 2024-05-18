@@ -10,13 +10,12 @@
 
 <br/>
 
-**This is a [Python 3 library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages with a variety of package managers.**
+**This is a [Python 3 library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages with a variety of package managers.**  
+It's designed to help Python apps check for and install any local dependencies which can't be installed with `pip`.
 
 ```shell
 pip install pydantic-pkgr
 ```
-
-It's designed to help Python apps that depend on local dependencies which can't be installed with `pip`.
 
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 > 📦 Provides consistent cross-platform interfaces for dependency resolution & installation at runtime  

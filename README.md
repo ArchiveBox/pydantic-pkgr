@@ -1,13 +1,13 @@
 # `pydantic-pkgr`
 
-[![PyPI][pypi-badge]][pypi]
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]
 [![GitHub Issues][issues-badge]][issues]
-[![Downloads][downloads-badge]][pypi]
 
+[![PyPI][pypi-badge]][pypi]
 [![Python Version][version-badge]][pypi]
 [![Django Version][django-badge]][pypi]
+[![Downloads][downloads-badge]][pypi]
 
 ```shell
 pip install pydantic-pkgr
@@ -351,7 +351,7 @@ admin.site.register(MyModel, MyModelAdmin)
 
 [coverage-badge]: https://coveralls.io/repos/github/ArchiveBox/pydantic-pkgr/badge.svg?branch=main
 [status-badge]: https://img.shields.io/github/actions/workflow/status/ArchiveBox/pydantic-pkgr/test.yml?branch=main
-[pypi-badge]: https://img.shields.io/pypi/v/pydantic-pkgr
+[pypi-badge]: https://img.shields.io/pypi/v/archivebox
 [licence-badge]: https://img.shields.io/github/license/ArchiveBox/pydantic-pkgr
 [repo-badge]: https://img.shields.io/github/last-commit/ArchiveBox/pydantic-pkgr
 [issues-badge]: https://img.shields.io/github/issues-raw/ArchiveBox/pydantic-pkgr

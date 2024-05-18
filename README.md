@@ -34,21 +34,22 @@ pip install pydantic-pkgr
 ```python
 from pydantic_pkgr import AptProvider
 
+# Example: Install curl using the apt provider
 apt = AptProvider()
-curl = apt.install(bin_name='curl')        # Example: Install curl using the apt provider
+curl = apt.install(bin_name='curl')
 print(curl.loaded_provider)                # 'apt'
 print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
 print(curl.loaded_version)                 # SemVer('7.81.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
+```
 
-
+```python
 from pydantic_pkgr import Binary, BinName, BinProvider
 
-class CurlBinary(Binary):                  # Example: Define a re-usable Binary supporting multiple install methods
+# Example: Define a re-usable Binary type with multiple supported install methods
+class CurlBinary(Binary):
     name: BinName = 'curl'
-    providers_supported: list[BinProvider] = [
-        BrewProvider(), AptProvider(), EnvProvider(),
-    ]
+    providers_supported: list[BinProvider] = [BrewProvider(), EnvProvider()]
 
 curl = CurlBinary().load_or_install()      # Example: Check for existing binary, install if missing
 print(curl.loaded_provider)                # 'brew'

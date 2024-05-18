@@ -45,6 +45,7 @@ class CurlBinary(Binary):
 curl = CurlBinary().install()
 print(curl.loaded_provider)                # 'brew'
 print(curl.loaded_abspath)                 # Path('/opt/homebrew/bin/curl')
+print(curl.model_dump_json(indent=4))      # all pydantic-pkgr objects support exporting/loading as json
 ...
 ```
 

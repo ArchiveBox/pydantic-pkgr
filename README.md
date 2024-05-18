@@ -321,18 +321,18 @@ ADMIN_DATA_VIEWS = {
 <br/>
 <pre><code>
 from django.contrib import admin
-
+<br/>
 class YourSiteAdmin(admin.AdminSite):
     """Your customized version of admin.AdminSite"""
     ...
-
+<br/>
 custom_admin = YourSiteAdmin()
 custom_admin.register(get_user_model())
 ...
-
+<br/>
 # Register the django-admin-data-views manually on your custom site admin
 from admin_data_views.admin import get_app_list, get_urls, admin_data_index_view, get_admin_data_urls
-
+<br/>
 custom_admin.get_app_list           = get_app_list.__get__(custom_admin, YourSiteAdmin)
 custom_admin.get_admin_data_urls    = get_admin_data_urls.__get__(custom_admin, YourSiteAdmin)
 custom_admin.admin_data_index_view  = admin_data_index_view.__get__(custom_admin, YourSiteAdmin)

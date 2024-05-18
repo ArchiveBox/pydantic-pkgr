@@ -10,7 +10,10 @@ from pathlib import Path
 from subprocess import run, PIPE, CompletedProcess
 
 from pydantic_core import core_schema, ValidationError
-from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, validate_call, GetCoreSchemaHandler, ConfigDict
+from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field
+
+
+BinProviderName = Literal['env', 'pip', 'apt', 'brew', 'npm', 'vendor']
 
 from .semver import SemVer
 
@@ -88,17 +91,47 @@ def bin_version(bin_path: HostBinPath, args=('--version',)) -> SemVer | None:
     return SemVer(run([bin_path, *args], stdout=PIPE).stdout.strip().decode())
 
 
-class InstalledBin(BaseModel):
+class ShallowBinary(BaseModel):
     """
     Shallow version of Binary used as a return type for BinProvider methods (e.g. load_or_install()).
     (doesn't implement full Binary interface, but can be used to populate a full loaded Binary instance)
     """
+    name: BinName
+
     model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
+    loaded_provider: BinProviderName = Field(default='env', alias='provider')
     loaded_abspath: HostBinPath = Field(alias='abspath')
     loaded_version: SemVer = Field(alias='version')
-    loaded_provider: 'BinProviderName' = Field(default='env', alias='provider')
     
+    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
+    @property
+    def is_executable(self) -> bool:
+        try:
+            assert self.loaded_abspath and path_is_executable(self.loaded_abspath)
+            return True
+        except (ValidationError, AssertionError):
+            return False
+
+    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
+    @property
+    def is_script(self) -> bool:
+        try:
+            assert self.loaded_abspath and path_is_script(self.loaded_abspath)
+            return True
+        except (ValidationError, AssertionError):
+            return False
+
+    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
+    @property
+    def is_valid(self) -> bool:
+        return bool(
+            self.name
+            and self.loaded_abspath
+            and self.loaded_version
+            and (self.is_executable or self.is_script)
+        )
+
     def exec(self, args) -> CompletedProcess:
         return run([self.abspath, *args], stdout=PIPE, stderr=PIPE, text=True)
 
@@ -132,7 +165,6 @@ ProviderType = Literal['abspath', 'version', 'subdeps', 'install']
 #     in_qemu: bool
 #     python: str
 
-BinProviderName = Literal['env', 'pip', 'apt', 'brew', 'npm', 'vendor']
 
 
 class BinProvider(ABC, BaseModel):
@@ -329,7 +361,7 @@ class BinProvider(ABC, BaseModel):
         return result
 
     @validate_call
-    def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> InstalledBin | None:
+    def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> ShallowBinary | None:
         subdeps = self.get_subdeps(bin_name, overrides=overrides)
 
         self.call_provider_for_action(
@@ -346,12 +378,17 @@ class BinProvider(ABC, BaseModel):
         installed_version = self.get_version(bin_name, abspath=installed_abspath)
         assert installed_version, f'Unable to find {bin_name} version after installing with {self.name}'
         
-        result = InstalledBin(provider=self.name, abspath=installed_abspath, version=installed_version)
+        result = ShallowBinary(
+            name=bin_name,
+            provider=self.name,
+            abspath=installed_abspath,
+            version=installed_version,
+        )
         self._install_cache[bin_name] = result
         return result
 
     @validate_call
-    def load(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False) -> InstalledBin | None:
+    def load(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False) -> ShallowBinary | None:
         installed_abspath = None
         installed_version = None
 
@@ -371,10 +408,15 @@ class BinProvider(ABC, BaseModel):
         if not installed_version:
             return None
 
-        return InstalledBin(provider=self.name, abspath=installed_abspath, version=installed_version)
+        return ShallowBinary(
+            name=bin_name,
+            provider=self.name,
+            abspath=installed_abspath,
+            version=installed_version,
+        )
 
     @validate_call
-    def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=True) -> InstalledBin | None:
+    def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=True) -> ShallowBinary | None:
         installed = self.load(bin_name, overrides=overrides, cache=cache)
         if not installed:
             installed = self.install(bin_name, overrides=overrides)

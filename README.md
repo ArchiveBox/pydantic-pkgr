@@ -49,7 +49,7 @@ print(ffmpeg.model_json_schema())            # ... all types provide OpenAPI-rea
 ```
 
 ```python
-from pydantic_pkgr import Binary, BinName, BinProvider
+from pydantic_pkgr import Binary, BrewProvider, EnvProvider
 
 # Example: Create a re-usable curl Binary object that defines its install methods
 curl = Binary(name='curl', providers=[BrewProvider(), EnvProvider()])

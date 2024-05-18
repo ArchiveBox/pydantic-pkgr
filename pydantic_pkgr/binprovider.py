@@ -407,13 +407,31 @@ class AptProvider(BinProvider):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
         print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
         
-        run(['apt-get', 'update', '-qq'])
-        proc = run(['apt-get', 'install', '-y', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
+        try:
+            # if pyinfra is installed, use it
+            
+            from pyinfra.operations import apt
+
+            apt.update(
+                name="Update apt repositories",
+                _sudo=True,
+                _sudo_user="pyinfra",
+            )
+
+            apt.packages(
+                name=f"Ensure {bin_name} is installed",
+                packages=subdeps.split(' '),
+                update=True,
+                _sudo=True,
+            )
+        except ImportError:
+            run(['apt-get', 'update', '-qq'])
+            proc = run(['apt-get', 'install', '-y', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
         
-        if proc.returncode != 0:
-            print(proc.stdout.strip().decode())
-            print(proc.stderr.strip().decode())
-            raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
+            if proc.returncode != 0:
+                print(proc.stdout.strip().decode())
+                print(proc.stderr.strip().decode())
+                raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
 
 class BrewProvider(BinProvider):
     name: BinProviderName = 'brew'

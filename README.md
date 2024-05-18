@@ -9,7 +9,7 @@
 [![Django Version][django-badge]][pypi]
 [![Downloads][downloads-badge]][pypi]
 
-**This is a Python library for installing & managing packages with a variety of package managers.**
+**This is a [Python 3 library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages with a variety of package managers.**
 
 ```shell
 pip install pydantic-pkgr
@@ -438,13 +438,13 @@ print(rg.loaded_version)
 
 [coverage-badge]: https://coveralls.io/repos/github/ArchiveBox/pydantic-pkgr/badge.svg?branch=main
 [status-badge]: https://img.shields.io/github/actions/workflow/status/ArchiveBox/pydantic-pkgr/test.yml?branch=main
-[pypi-badge]: https://img.shields.io/pypi/v/pydantic-pkgr
-[licence-badge]: https://img.shields.io/github/license/ArchiveBox/pydantic-pkgr
-[repo-badge]: https://img.shields.io/github/last-commit/ArchiveBox/pydantic-pkgr
-[issues-badge]: https://img.shields.io/github/issues-raw/ArchiveBox/pydantic-pkgr
-[version-badge]: https://img.shields.io/pypi/pyversions/pydantic-pkgr
-[downloads-badge]: https://img.shields.io/pypi/dm/pydantic-pkgr
-[django-badge]: https://img.shields.io/pypi/djversions/pydantic-pkgr
+[pypi-badge]: https://img.shields.io/pypi/v/pydantic-pkgr?v=1
+[licence-badge]: https://img.shields.io/github/license/ArchiveBox/pydantic-pkgr?v=1
+[repo-badge]: https://img.shields.io/github/last-commit/ArchiveBox/pydantic-pkgr?v=1
+[issues-badge]: https://img.shields.io/github/issues-raw/ArchiveBox/pydantic-pkgr?v=1
+[version-badge]: https://img.shields.io/pypi/pyversions/pydantic-pkgr?v=1
+[downloads-badge]: https://img.shields.io/pypi/dm/pydantic-pkgr?v=1
+[django-badge]: https://img.shields.io/pypi/djversions/pydantic-pkgr?v=1
 
 [coverage]: https://coveralls.io/github/ArchiveBox/pydantic-pkgr?branch=main
 [status]: https://github.com/ArchiveBox/pydantic-pkgr/actions/workflows/test.yml

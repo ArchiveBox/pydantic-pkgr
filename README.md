@@ -378,6 +378,10 @@ admin.site.register(MyModel, MyModelAdmin)
 ### Advanced: Implement your own package manager behavior by subclassing BinProvider
 
 ```python
+from subprocess import run, PIPE
+
+from pydantic_pkgr import BinProvider, BinProviderName, BinName, SemVer
+
 class CargoProvider(BinProvider):
     name: BinProviderName = 'cargo'
     
@@ -385,7 +389,7 @@ class CargoProvider(BinProvider):
         if '~/.cargo/bin' not in sys.path:
             sys.path.append('~/.cargo/bin')
 
-    def on_install(self, bin_name: str, **context):
+    def on_install(self, bin_name: BinName, **context):
         subdeps = self.on_get_subdeps(bin_name)
         installer_process = run(['cargo', 'install', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
         assert installer_process.returncode == 0
@@ -395,7 +399,7 @@ class CargoProvider(BinProvider):
         # e.g. 'yt-dlp' -> 'yt-dlp ffmpeg libcffi libaac'
         return bin_name
 
-    def on_get_abspath(self, bin_name: str, **context) -> Path | None:
+    def on_get_abspath(self, bin_name: BinName, **context) -> Path | None:
         self.on_setup_paths()
         return Path(os.which(bin_name))
 
@@ -404,7 +408,9 @@ class CargoProvider(BinProvider):
         return SemVer(run([bin_name, '--version'], stdout=PIPE).stdout.decode())
 
 cargo = CargoProvider()
-cargo.install(bin_name='ripgrep')
+rg = cargo.install(bin_name='ripgrep')
+print(rg.loaded_provider)
+print(rg.loaded_version)
 ```
 
 

@@ -15,6 +15,8 @@ pip install pydantic-pkgr
 
 **This is a Python package that allows you to manage system dependencies with a variety of package managers.**
 
+*This was built by [ArchiveBox](https://github.com/ArchiveBox) to auto-install and maintain dependencies like `chrome`, `wget`, `curl`, etc. across all our supported OS's.*
+
 ---
 
 **Documentation**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
@@ -35,7 +37,7 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 
 > It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
 
-**So far it supports `installing`/`updating`/`removing`/`finding installed` packages with:**
+**So far it supports `installing`/`finding installed`/~~`updating`/`removing`~~ packages with:**
 
 - `apt`
 - `brew`
@@ -44,16 +46,15 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 - `env` (looks for existing version of binary in user's `$PATH` at runtime)
 - `vendor` (you can bundle vendored copies of packages you depend on within your source)
 
-Planned:
+*Planned:*
 - `docker pull`
 - `cargo`
 - `go get`
 - `gem`
 - `pkg`
 - `nix`
-- *and more using `ansible`...*
+- *and more using `ansible`/[`pyinfra`](https://github.com/pyinfra-dev/pyinfra)...*
 
-*Built by [ArchiveBox](https://github.com/ArchiveBox).*
 
 
 ---

@@ -80,7 +80,7 @@ print(curl.model_dump_json(indent=4))      # ... everything can also be dumped/l
 pip install pydantic-pkgr
 ```
 
-### `BinProvider`
+### [`BinProvider`](#)
 
 This type represents a "provider of binaries", e.g. a package manager like `apt`/`pip`/`npm`, or `env` (which finds binaries in your `$PATH`).
 
@@ -122,7 +122,7 @@ print(django_bin.loaded_abspath)      # Path('/usr/lib/python3.10/site-packages/
 print(django_bin.loaded_version)      # SemVer('5.0.2')
 ```
 
-### `Binary`
+### [`Binary`](#)
 
 This type represents a single binary dependency aka a package (e.g. `wget`, `curl`, `ffmpeg`, etc.).  
 It can define one or more `BinProvider`s that it supports, along with overrides to customize the behavior for each.
@@ -200,7 +200,7 @@ print(custom_docker.loaded_version)       # '5.0.2'
 print(custom_docker.is_valid)             # True
 ```
 
-### `SemVer`
+### [`SemVer`](#)
 
 ```python
 from pydantic_pkgr import SemVer
@@ -416,9 +416,10 @@ cargo.install(bin_name='ripgrep')
 
 ### TODO
 
-- [] Add `preinstall` and `postinstall` hooks for things like adding `apt` sources and running cleanup scripts
-- [] Provide editability and actions via Django Admin UI using [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) and [`django-jsonform`](https://django-jsonform.readthedocs.io/en/latest/)
-- [] Write more documentation
+- [x] Implement initial basic support for `apt`, `brew`, and `pip`
+- [ ] Add `preinstall` and `postinstall` hooks for things like adding `apt` sources and running cleanup scripts
+- [ ] Provide editability and actions via Django Admin UI using [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) and [`django-jsonform`](https://django-jsonform.readthedocs.io/en/latest/)
+- [ ] Write more documentation
 
 [coverage-badge]: https://coveralls.io/repos/github/ArchiveBox/pydantic-pkgr/badge.svg?branch=main
 [status-badge]: https://img.shields.io/github/actions/workflow/status/ArchiveBox/pydantic-pkgr/test.yml?branch=main

@@ -11,7 +11,7 @@
 <br/>
 
 **This is a [Python 3 library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages locally with a variety of package managers.**  
-It's designed to help Python apps check for and install local binaries after their original `pip`-install.
+It's designed to help Python apps check for and install local binaries outside of their `pip`-install distribution.
 
 ```shell
 pip install pydantic-pkgr

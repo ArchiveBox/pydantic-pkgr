@@ -63,8 +63,8 @@ def path_is_abspath(path: Path) -> Path:
     return path.resolve()
 
 HostAbsPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)]
-HostBinPath = Annotated[Path, AfterValidator(path_is_abspath), AfterValidator(path_is_file)]
-
+HostBinPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)] # removed: AfterValidator(path_is_executable)
+# not all bins need to be executable to be bins, some are scripts
 
 @validate_call
 def bin_abspath(bin_path_or_name: BinName | Path) -> HostBinPath | None:

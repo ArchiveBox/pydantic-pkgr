@@ -38,13 +38,9 @@ from pydantic_pkgr import BinProvider, AptProvider, Binary
 apt = AptProvider()
 curl = apt.install('curl')
 
-print(curl.abspath,         curl.version,    curl.provider, curl.is_valid)
-#     Path('/usr/bin/curl') SemVer('7.81.0') 'apt'          True
+print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True
 
-proc = curl.exec(['-fsSL', 'https://example.com'])
-
-print(proc.stdout,       proc.stderr, proc.returncode)
-#     <!doctype html>...              0                
+proc = curl.exec(['-fsSL', 'https://example.com'])               # <!doctype html>...
 ```
 
 ```python
@@ -60,10 +56,9 @@ class CurlBinary(Binary):
 curl = CurlBinary()
 
 # it works the same either way
-curl: Binary = curl.install()
-print(curl.abspath,                  curl.version,    curl.provider, curl.is_valid)
-#     Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew'          True
-curl.exec(['--version'])             # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
+curl = curl.install()
+print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew' True
+curl.exec(['--version'])                                         # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```
 
 ```python
@@ -73,7 +68,7 @@ from pydantic_pkgr import Binary
 # Example: Verify & use packages installed by other tools (e.g. pyinfra/ansible)
 apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
 
-# Load it as a Binary after installing to get a nice type-checked handler for it
+# Load it as a Binary provides a nice type-checkable, validated, serializable handle for it
 ffmpeg = Binary(name='ffmpeg').load()
 ffmpeg.exec(['-i', 'input.mp4', 'output.avi'])
 

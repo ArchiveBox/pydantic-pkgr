@@ -16,6 +16,8 @@
 pip install pydantic-pkgr
 ```
 
+It's designed to ease situations where an app or library needs to verify/auto-install many local system dependencies at runtime.
+
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 > 📦 Provides consistent cross-platform interfaces for dependency resolution & installation at runtime  
 > 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0, [`django-ninja`](https://django-ninja.dev/), and OpenAPI + [`django-jsonform`](https://django-jsonform.readthedocs.io/) out-of-the-box  

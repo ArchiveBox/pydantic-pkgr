@@ -56,7 +56,8 @@ print(curl.loaded_abspath)                 # Path('/opt/homebrew/bin/curl')
 print(curl.loaded_version)                 # SemVer('8.4.0')
 curl.exec(['--version'])                   # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 
-print(curl.model_dump_json(indent=4))      # ... everything can also be dumped/loaded as json
+print(curl.model_dump_json())              # ... everything can also be dumped/loaded as json
+print(curl.model_json_schema())            # ... view OpenAPI-ready JSON schema
 ...
 ```
 

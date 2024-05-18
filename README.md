@@ -1,4 +1,4 @@
-# `pydantic-pkgr`: Modern system package management in Python
+# `pydantic-pkgr`<br/><small>System package dependency management w/ strongly typed Python</small>
 
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]
@@ -9,13 +9,13 @@
 [![Django Version][django-badge]][pypi]
 [![Downloads][downloads-badge]][pypi]
 
+**This is a Python library that allows you to manage system package dependencies with a variety of package managers.**
+
 ```shell
 pip install pydantic-pkgr
 ```
 
-**This is a Python package that allows you to manage system dependencies with a variety of package managers.**
-
-*This was built by [ArchiveBox](https://github.com/ArchiveBox) to auto-install and maintain dependencies like `chrome`, `wget`, `curl`, etc. across all our supported OS's.*
+*Built by [ArchiveBox](https://github.com/ArchiveBox) to auto-install and maintain ArchiveBox's dependencies (`chrome`, `wget`, `curl`, etc.) across all our supported OS's.*
 
 > It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong typing guarantees and it supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
 

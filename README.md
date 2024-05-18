@@ -17,7 +17,7 @@ pip install pydantic-pkgr
 
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 > 📦 Provides consistent cross-platform interfaces for dependency resolution & installation at runtime  
-> 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 and OpenAPI + [`django-jsonform`](https://django-jsonform.readthedocs.io/) out-of-the-box  
+> 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0, [`django-ninja`](https://django-ninja.dev/), and OpenAPI + [`django-jsonform`](https://django-jsonform.readthedocs.io/) out-of-the-box  
 > 🦄 Plays well with [`pyinfra`](https://github.com/pyinfra-dev/pyinfra) and [`ansible`](https://github.com/ansible/ansible) for advanced orchestration use-cases
 
 <sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install & auto-update our extractor dependencies at runtime (<code>chrome</code>, <code>wget</code>, <code>curl</code>, etc.) on `macOS`/`Linux`/`Docker`.</i></sub>

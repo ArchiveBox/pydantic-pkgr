@@ -1,4 +1,4 @@
-__package__ = 'archivebox.plugantic'
+__package__ = 'pydantic_pkgr'
 
 import sys
 import inspect

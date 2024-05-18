@@ -38,14 +38,12 @@ from pydantic_pkgr import AptProvider
 # Example: Install curl using the apt provider
 apt = AptProvider()
 curl = apt.install('curl')
+
 print(curl.is_valid)                       # True
 print(curl.provider)                       # 'apt'
 print(curl.abspath)                        # Path('/usr/bin/curl')
 print(curl.version)                        # SemVer('7.81.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
-
-print(ffmpeg.model_dump_json())              # ... everything can also be dumped/loaded as json
-print(ffmpeg.model_json_schema())            # ... all types provide OpenAPI-ready JSON schemas
 ```
 
 ```python
@@ -70,8 +68,11 @@ apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
 
 # Load it as a Binary after installing to get a nice type-checked handler for it
 ffmpeg = Binary(name='ffmpeg').load()
-print(ffmpeg)                             # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True
+print(ffmpeg)                              # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True
 ffmpeg.exec(['-i', 'input.mp4', 'output.avi'])
+
+print(ffmpeg.model_dump_json())            # ... everything can also be dumped/loaded as json
+print(ffmpeg.model_json_schema())          # ... all types provide OpenAPI-ready JSON schemas
 ```
 
 ### Supported Package Managers

@@ -33,7 +33,7 @@ pip install pydantic-pkgr
 <br/>
 
 ```python
-from pydantic_pkgr import BinProvider, AptProvider, Binary
+from pydantic_pkgr import AptProvider, Binary
 
 apt = AptProvider()
 curl = apt.install('curl')

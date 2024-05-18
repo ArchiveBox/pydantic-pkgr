@@ -3,9 +3,9 @@
 [![PyPI][pypi-badge]][pypi]
 [![Python Version][version-badge]][pypi]
 [![Django Version][django-badge]][pypi]
-<!--[![Downloads][downloads-badge]][pypi]-->
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]
+<!--[![Downloads][downloads-badge]][pypi]-->
 
 <br/>
 

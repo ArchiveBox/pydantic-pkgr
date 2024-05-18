@@ -38,7 +38,7 @@ from pydantic_pkgr import AptProvider
 # Example: Install curl using the apt provider
 apt = AptProvider()
 curl = apt.install('curl')
-
+print(curl.is_valid)                       # True
 print(curl.provider)                       # 'apt'
 print(curl.abspath)                        # Path('/usr/bin/curl')
 print(curl.version)                        # SemVer('7.81.0')

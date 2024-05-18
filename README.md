@@ -1,4 +1,4 @@
-<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a> &nbsp; &nbsp; &nbsp; &nbsp; 📦  <small><code>apt</code>&nbsp; <code>brew</code>&nbsp; <code>pip</code>&nbsp; <code>npm</code> &nbsp;₊₊₊</small><br/><sub>Simple Pydantic interfaces for package managers and installed binaries.</sub></h1>
+<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a> &nbsp; &nbsp; &nbsp; &nbsp; 📦  <small><code>apt</code>&nbsp; <code>brew</code>&nbsp; <code>pip</code>&nbsp; <code>npm</code> &nbsp;₊₊₊</small><br/><sub>Simple Pydantic interfaces for package managers + installed binaries.</sub></h1>
 <br/>
 
 [![PyPI][pypi-badge]][pypi]

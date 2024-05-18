@@ -58,7 +58,7 @@ print(curl.model_dump_json(indent=4))      # ... everything can also be dumped/l
 
 ### Supported Package Managers
 
-**So far it supports `installing`/`finding installed`/~~`updating`/`removing`~~ packages with:**
+**So far it supports `installing`/`finding installed`/~~`updating`/`removing`~~ packages on `Linux`/`macOS` with:**
 
 - `apt`
 - `brew`

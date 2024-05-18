@@ -10,8 +10,9 @@
 
 <br/>
 
-**This is a [Python 3 library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages locally with a variety of package managers.**  
-It's designed to help Python apps check for and install local binaries outside of their `pip`-install distribution.
+**This is a [Python library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages locally with a variety of package managers.**  
+It's designed to help Python apps check for and install local binaries at runtime.  
+
 
 ```shell
 pip install pydantic-pkgr
@@ -231,6 +232,11 @@ SemVer.parse('2024.04.05)                                           # SemVer(202
 SemVer.parse('1.9+beta')                                            # SemVer(1, 9, 0)
 str(SemVer(1, 9, 0))                                                # '1.9.0'
 ```
+<br/>
+
+> These types are all meant to be used library-style to make writing your own apps easier.  
+> e.g. you can use it to build things like: [`playwright install --with-deps`](https://playwright.dev/docs/browsers#install-system-dependencies))
+
 
 <br/>
 

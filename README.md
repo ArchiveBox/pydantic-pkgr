@@ -1,4 +1,4 @@
-<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a><br/><sub>Fully-typed Python 3 APIs for system package managers.</sub></h1>
+<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a><br/><sub>Fully-typed Python 3 APIs for common system package managers.</sub></h1>
 
 [![PyPI][pypi-badge]][pypi]
 [![Python Version][version-badge]][pypi]

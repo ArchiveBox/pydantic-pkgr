@@ -438,7 +438,7 @@ print(rg.loaded_version)
 
 [coverage-badge]: https://coveralls.io/repos/github/ArchiveBox/pydantic-pkgr/badge.svg?branch=main
 [status-badge]: https://img.shields.io/github/actions/workflow/status/ArchiveBox/pydantic-pkgr/test.yml?branch=main
-[pypi-badge]: https://img.shields.io/pypi/v/archivebox
+[pypi-badge]: https://img.shields.io/pypi/v/pydantic-pkgr
 [licence-badge]: https://img.shields.io/github/license/ArchiveBox/pydantic-pkgr
 [repo-badge]: https://img.shields.io/github/last-commit/ArchiveBox/pydantic-pkgr
 [issues-badge]: https://img.shields.io/github/issues-raw/ArchiveBox/pydantic-pkgr

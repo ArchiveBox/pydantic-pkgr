@@ -28,29 +28,31 @@ pip install pydantic-pkgr
 ---
 
 ```python
-# Example: Install curl using the apt provider
-
 from pydantic_pkgr import AptProvider
 
 apt = AptProvider()
-curl = apt.load_or_install(bin_name='curl')
+curl = apt.install(bin_name='curl')        # Example: Install curl using the apt provider
+print(curl.loaded_provider                 # 'apt'
 print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
 print(curl.loaded_version)                 # SemVer('7.81.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 
 
-# Example: Define a re-usable Binary supporting multiple install methods
-
 from pydantic_pkgr import Binary, BinName, BinProvider
 
-class CurlBinary(Binary):
+class CurlBinary(Binary):                  # Example: Define a re-usable Binary supporting multiple install methods
     name: BinName = 'curl'
-    providers_supported: list[BinProvider] = [BrewProvider(), AptProvider(), EnvProvider()]
+    providers_supported: list[BinProvider] = [
+        BrewProvider(), AptProvider(), EnvProvider(),
+    ]
 
-curl = CurlBinary().install()
+curl = CurlBinary().load_or_install()      # Example: Check for existing binary, install if missing
 print(curl.loaded_provider)                # 'brew'
 print(curl.loaded_abspath)                 # Path('/opt/homebrew/bin/curl')
-print(curl.model_dump_json(indent=4))      # all pydantic-pkgr objects support exporting/loading as json
+print(curl.loaded_version)                 # SemVer('8.4.0')
+curl.exec(['--version'])                   # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
+
+print(curl.model_dump_json(indent=4))      # ... everything can also be dumped/loaded as json
 ...
 ```
 

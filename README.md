@@ -285,27 +285,14 @@ Then add this to your `settings.py`:
 ```python
 INSTALLED_APPS = [
     # ...
-
-    'pydantic_pkgr'
-
     'admin_data_views'
-
+    'pydantic_pkgr'
     # ...
 ]
 
 ADMIN_DATA_VIEWS = {
     "NAME": "Environment",
     "URLS": [
-        {
-            "route": "binproviders/",
-            "view": "pydantic_pkgr.views.binproviders_list_view",
-            "name": "binproviders",
-            "items": {
-                "route": "<str:key>/",
-                "view": "pydantic_pkgr.views.binprovider_detail_view",
-                "name": "binprovider",
-            },
-        },
         {
             "route": "binaries/",
             "view": "pydantic_pkgr.views.binaries_list_view",
@@ -316,6 +303,7 @@ ADMIN_DATA_VIEWS = {
                 "name": "binary",
             },
         },
+        # Coming soon: binprovider_list_view + binprovider_detail_view ...
     ],
 }
 ```
@@ -326,8 +314,6 @@ ADMIN_DATA_VIEWS = {
 <b><code>admin.py</code>:</b>
 <br/>
 <pre><code>
-from django.contrib import admin
-<br/>
 class YourSiteAdmin(admin.AdminSite):
     """Your customized version of admin.AdminSite"""
     ...
@@ -335,14 +321,8 @@ class YourSiteAdmin(admin.AdminSite):
 custom_admin = YourSiteAdmin()
 custom_admin.register(get_user_model())
 ...
-<br/>
-# Register the django-admin-data-views manually on your custom site admin
-from admin_data_views.admin import get_app_list, get_urls, admin_data_index_view, get_admin_data_urls
-<br/>
-custom_admin.get_app_list           = get_app_list.__get__(custom_admin, YourSiteAdmin)
-custom_admin.get_admin_data_urls    = get_admin_data_urls.__get__(custom_admin, YourSiteAdmin)
-custom_admin.admin_data_index_view  = admin_data_index_view.__get__(custom_admin, YourSiteAdmin)
-custom_admin.get_urls               = get_urls(custom_admin.get_urls).__get__(custom_admin, YourSiteAdmin)
+from pydantic_pkgr.admin import register_admin_views
+register_admin_views(custom_admin)
 </code></pre>
 </details>
 
@@ -352,7 +332,7 @@ custom_admin.get_urls               = get_urls(custom_admin.get_urls).__get__(cu
 
 Install `django-jsonform` to get auto-generated Forms for editing BinProvider, Binary, etc. data
 ```bash
-pip install pydantic-pkgr django-pydantic-field django-jsonform
+pip install django-pydantic-field django-jsonform
 ```
 *For more info see the [`django-jsonform`](https://django-jsonform.readthedocs.io/) docs...*
 

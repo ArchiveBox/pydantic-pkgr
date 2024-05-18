@@ -32,9 +32,9 @@ from pydantic_pkgr import AptProvider
 
 apt = AptProvider()
 curl = apt.load_or_install(bin_name='curl')
-print(curl.loaded_version)            # Path('/usr/bin/curl')
-print(curl.loaded_version)            # SemVer('8.4.0')
-curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
+print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
+print(curl.loaded_version)                 # SemVer('8.4.0')
+curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 ```
 
 ### Supported Package Managers
@@ -356,9 +356,9 @@ admin.site.register(MyModel, MyModelAdmin)
 [licence-badge]: https://img.shields.io/github/license/ArchiveBox/pydantic-pkgr
 [repo-badge]: https://img.shields.io/github/last-commit/ArchiveBox/pydantic-pkgr
 [issues-badge]: https://img.shields.io/github/issues-raw/ArchiveBox/pydantic-pkgr
-[version-badge]: https://img.shields.io/pypi/pyversions/archivebox
-[downloads-badge]: https://img.shields.io/pypi/dm/archivebox
-[django-badge]: https://img.shields.io/pypi/djversions/archivebox
+[version-badge]: https://img.shields.io/pypi/pyversions/pydantic-pkgr
+[downloads-badge]: https://img.shields.io/pypi/dm/pydantic-pkgr
+[django-badge]: https://img.shields.io/pypi/djversions/pydantic-pkgr
 
 [coverage]: https://coveralls.io/github/ArchiveBox/pydantic-pkgr?branch=main
 [status]: https://github.com/ArchiveBox/pydantic-pkgr/actions/workflows/test.yml

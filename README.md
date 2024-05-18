@@ -32,7 +32,7 @@ from pydantic_pkgr import AptProvider
 
 apt = AptProvider()
 curl = apt.install(bin_name='curl')        # Example: Install curl using the apt provider
-print(curl.loaded_provider                 # 'apt'
+print(curl.loaded_provider)                # 'apt'
 print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
 print(curl.loaded_version)                 # SemVer('7.81.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...

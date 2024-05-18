@@ -28,13 +28,24 @@ pip install pydantic-pkgr
 ---
 
 ```python
-from pydantic_pkgr import AptProvider
+from pydantic_pkgr import AptProvider, Binary, BinName, BinProvider
 
+# Example: Install curl using the apt package manager directly
 apt = AptProvider()
 curl = apt.load_or_install(bin_name='curl')
 print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
 print(curl.loaded_version)                 # SemVer('8.4.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
+
+# Example: Create a re-usable Binary definition supporting multiple install methods
+class CurlBinary(Binary):
+    name: BinName = 'curl'
+    providers_supported: list[BinProvider] = [AptProvider(), BrewProvider(), EnvProvider()]
+
+curl = CurlBinary().install()
+print(curl.loaded_provider)                # 'brew'
+print(curl.loaded_abspath)                 # Path('/opt/homebrew/bin/curl')
+...
 ```
 
 ### Supported Package Managers
@@ -53,7 +64,7 @@ curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) l
 ---
 
 
-## Usage
+## Full Example Usage
 
 ```bash
 pip install pydantic-pkgr
@@ -339,6 +350,26 @@ class MyModelAdmin(admin.ModelAdmin):
 
 admin.site.register(MyModel, MyModelAdmin)
 ```
+<br/>
+
+---
+
+<br/>
+
+## API Reference
+
+### `BinProvider`
+
+[WIP]
+
+### `Binary`
+
+[WIP]
+
+### `SemVer`
+
+[WIP]
+
 <br/>
 
 ---

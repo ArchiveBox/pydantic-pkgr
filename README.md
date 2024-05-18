@@ -19,9 +19,9 @@ pip install pydantic-pkgr
 
 ---
 
-**Documentation**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
-
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
+
+**Documentation**: [https://github.com/ArchiveBox/pydantic-pkgr/blob/main/README.md](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/README.md)
 
 ---
 

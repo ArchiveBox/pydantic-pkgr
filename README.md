@@ -1,4 +1,4 @@
-# `pydantic-pkgr`<br/><small>System package dependency management w/ strongly typed Python</small>
+# `pydantic-pkgr`<br/><small>System package manager APIs in strongly typed Python</small>
 
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]
@@ -9,15 +9,17 @@
 [![Django Version][django-badge]][pypi]
 [![Downloads][downloads-badge]][pypi]
 
-**This is a Python library that allows you to manage system package dependencies with a variety of package managers.**
+**This is a Python library for installing & managing packages with a variety of package managers.**
 
 ```shell
 pip install pydantic-pkgr
 ```
 
-*Built by [ArchiveBox](https://github.com/ArchiveBox) to auto-install and maintain ArchiveBox's dependencies (`chrome`, `wget`, `curl`, etc.) across all our supported OS's.*
+> 📦 Provides consistent cross-platform interfaces for dependency installation at runtime  
+> 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 and `django-jsonform` out-of-the-box  
+> ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong typing and json-compatibility  
 
-> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong typing guarantees and it supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
+<sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install and auto-update dependencies (<code>chrome</code>, <code>wget</code>, <code>curl</code>, etc.) at runtime across `macOS`/`Linux`/`Docker`.</i></sub>
 
 ---
 

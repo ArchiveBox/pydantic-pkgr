@@ -16,7 +16,7 @@
 pip install pydantic-pkgr
 ```
 
-It's designed to ease situations where an app or library needs to verify/auto-install many local system dependencies at runtime.
+It's designed to help Python apps that depend on local dependencies which can't be installed with `pip`.
 
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 > 📦 Provides consistent cross-platform interfaces for dependency resolution & installation at runtime  

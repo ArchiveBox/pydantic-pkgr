@@ -496,10 +496,10 @@ class EnvProvider(BinProvider):
     name: BinProviderName = 'env'
 
     abspath_provider: ProviderLookupDict = {
-        # 'python': lambda: Path('/opt/homebrew/Cellar/python@3.10/3.10.14/Frameworks/Python.framework/Versions/3.10/bin/python3.10'),
+        'python': lambda: Path(sys.executable),
     }
     version_provider: ProviderLookupDict = {
-        # 'python': lambda: '{}.{}.{}'.format(*sys.version_info[:3]),
+        'python': lambda: '{}.{}.{}'.format(*sys.version_info[:3]),
     }
 
     def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **_):

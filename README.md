@@ -1,4 +1,4 @@
-<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a><br/><small>System package manager APIs for strongly typed Python</small></h1>
+<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a><br/><sub>System package manager API for strongly typed Python</sub></h1>
 
 [![PyPI][pypi-badge]][pypi]
 [![Python Version][version-badge]][pypi]

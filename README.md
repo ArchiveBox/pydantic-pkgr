@@ -1,13 +1,11 @@
 <h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a><br/><small>System package manager APIs for strongly typed Python</small></h1>
 
-[![GitHub][licence-badge]][licence]
-[![GitHub Last Commit][repo-badge]][repo]
-[![GitHub Issues][issues-badge]][issues]
-
 [![PyPI][pypi-badge]][pypi]
 [![Python Version][version-badge]][pypi]
 [![Django Version][django-badge]][pypi]
 [![Downloads][downloads-badge]][pypi]
+[![GitHub][licence-badge]][licence]
+[![GitHub Last Commit][repo-badge]][repo]
 
 <br/>
 

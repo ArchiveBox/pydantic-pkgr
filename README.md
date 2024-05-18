@@ -48,15 +48,7 @@ curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) l
 - `env` (looks for existing version of binary in user's `$PATH` at runtime)
 - `vendor` (you can bundle vendored copies of packages you depend on within your source)
 
-*Planned:*
-- `docker pull`
-- `cargo`
-- `go get`
-- `gem`
-- `pkg`
-- `nix`
-- *and more using `ansible`/[`pyinfra`](https://github.com/pyinfra-dev/pyinfra)...*
-
+*Planned:* `docker`, `cargo`, `nix`, `apk`, `go get`, `gem`, `pkg`, *and more using `ansible`/[`pyinfra`](https://github.com/pyinfra-dev/pyinfra)...*
 
 ---
 

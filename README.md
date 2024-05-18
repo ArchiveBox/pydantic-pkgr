@@ -38,9 +38,9 @@ from pydantic_pkgr import AptProvider
 apt = AptProvider()
 curl = apt.install('curl')
 
-print(curl.loaded_provider)                # 'apt'
-print(curl.loaded_abspath)                 # Path('/usr/bin/curl')
-print(curl.loaded_version)                 # SemVer('7.81.0')
+print(curl.provider)                       # 'apt'
+print(curl.abspath)                        # Path('/usr/bin/curl')
+print(curl.version)                        # SemVer('7.81.0')
 curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 ```
 
@@ -51,9 +51,9 @@ from pydantic_pkgr import Binary, BinName, BinProvider
 curl = Binary(name='curl', providers=[BrewProvider(), EnvProvider()])
 curl = curl.install()
 
-print(curl.loaded_provider)                # 'brew'
-print(curl.loaded_abspath)                 # Path('/opt/homebrew/bin/curl')
-print(curl.loaded_version)                 # SemVer('8.4.0')
+print(curl.provider)                       # 'brew'
+print(curl.abspath)                        # Path('/opt/homebrew/bin/curl')
+print(curl.version)                        # SemVer('8.4.0')
 curl.exec(['--version'])                   # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```
 
@@ -105,15 +105,15 @@ from pydantic_pkgr import EnvProvider, PipProvider, AptProvider, BrewProvider
 ### Example: Finding an existing install of bash using the system $PATH environment
 env = EnvProvider()
 bash = env.load(bin_name='bash')
-print(bash.loaded_abspath)            # Path('/opt/homebrew/bin/bash')
-print(bash.loaded_version)            # SemVer('5.2.26')
+print(bash.abspath)                   # Path('/opt/homebrew/bin/bash')
+print(bash.version)                   # SemVer('5.2.26')
 bash.exec(['-c', 'echo hi'])          # hi
 
 ### Example: Installing curl using the apt package manager
 apt = AptProvider()
 curl = apt.install(bin_name='curl')
-print(curl.loaded_version)            # Path('/usr/bin/curl')
-print(curl.loaded_version)            # SemVer('8.4.0')
+print(curl.version)                   # Path('/usr/bin/curl')
+print(curl.version)                   # SemVer('8.4.0')
 curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 
 ### Example: Finding/Installing django with pip (w/ customized binpath resolution behavior)
@@ -121,8 +121,8 @@ pip = PipProvider(
     abspath_provider={'*': lambda bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
 )
 django_bin = pip.load_or_install(bin_name='django')
-print(django_bin.loaded_abspath)      # Path('/usr/lib/python3.10/site-packages/django/__init__.py')
-print(django_bin.loaded_version)      # SemVer('5.0.2')
+print(django_bin.abspath)             # Path('/usr/lib/python3.10/site-packages/django/__init__.py')
+print(django_bin.version)             # SemVer('5.0.2')
 ```
 
 ### [`Binary`](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/pydantic_pkgr/binary.py#:~:text=class%20Binary)
@@ -132,9 +132,9 @@ It can define one or more `BinProvider`s that it supports, along with overrides 
 
 `Binary`s implement the following interface:
 - `load()`, `install()`, `load_or_install()` `->` `Binary`
-- `loaded_provider: str`
-- `loaded_abspath: Path`
-- `loaded_version: SemVer`
+- `provider: BinProviderName` (`BinProviderName == str`)
+- `abspath: Path`
+- `version: SemVer`
 
 ```python
 from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
@@ -154,9 +154,9 @@ class YtdlpBinary(Binary):
     }
 
 ytdlp = YtdlpBinary().load_or_install()
-print(ytdlp.loaded_provider)              # 'brew'
-print(ytdlp.loaded_abspath)               # Path('/opt/homebrew/bin/yt-dlp')
-print(ytdlp.loaded_version)               # SemVer('2024.4.9')
+print(ytdlp.provider)                     # 'brew'
+print(ytdlp.abspath)                      # Path('/opt/homebrew/bin/yt-dlp')
+print(ytdlp.version)                      # SemVer('2024.4.9')
 print(ytdlp.is_valid)                     # True
 ```
 
@@ -185,18 +185,18 @@ class DockerBinary(Binary):
     }
 
 docker = DockerBinary().load_or_install()
-print(docker.loaded_provider)             # 'env'
-print(docker.loaded_abspath)              # '/usr/local/bin/podman'
-print(docker.loaded_version)              # Ž6.0.2'
+print(docker.provider)                    # 'env'
+print(docker.abspath)                     # Path('/usr/local/bin/podman')
+print(docker.version)                     # SemVer('6.0.2')
 print(docker.is_valid)                    # True
 
 # You can also pass **kwargs to override properties at runtime,
 # e.g. if you want to force the abspath to be at a specific path:
-custom_docker = DockerBinary(loaded_abspath='~/custom/bin/podman').load()
+custom_docker = DockerBinary(abspath='~/custom/bin/podman').load()
 print(custom_docker.name)                 # 'docker'
-print(custom_docker.loaded_provider)      # 'env'
-print(custom_docker.loaded_abspath)       # '/Users/example/custom/bin/podman'
-print(custom_docker.loaded_version)       # '5.0.2'
+print(custom_docker.provider)             # 'env'
+print(custom_docker.abspath)              # Path('/Users/example/custom/bin/podman')
+print(custom_docker.version)              # SemVer('5.0.2')
 print(custom_docker.is_valid)             # True
 ```
 
@@ -388,8 +388,8 @@ class CargoProvider(BinProvider):
 
 cargo = CargoProvider()
 rg = cargo.install(bin_name='ripgrep')
-print(rg.loaded_provider)
-print(rg.loaded_version)
+print(rg.provider)                      # 'cargo'
+print(rg.version)                       # SemVer(14, 1, 0)
 ```
 
 

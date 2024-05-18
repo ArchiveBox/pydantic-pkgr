@@ -63,10 +63,10 @@ print(curl.model_json_schema())            # ... view OpenAPI-ready JSON schema
 
 **So far it supports `installing`/`finding installed`/~~`updating`/`removing`~~ packages on `Linux`/`macOS` with:**
 
-- `apt`
-- `brew`
-- `pip`
-- `npm`
+- `apt` (Ubuntu/Debian/etc.)
+- `brew` (macOS/Linux)
+- `pip` (Linux/macOS/Windows)
+- `npm` (Linux/macOS/Windows)
 - `env` (looks for existing version of binary in user's `$PATH` at runtime)
 - `vendor` (you can bundle vendored copies of packages you depend on within your source)
 
@@ -81,7 +81,7 @@ print(curl.model_json_schema())            # ... view OpenAPI-ready JSON schema
 pip install pydantic-pkgr
 ```
 
-### [`BinProvider`](#)
+### [`BinProvider`](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/pydantic_pkgr/binprovider.py#:~:text=class%20BinProvider)
 
 This type represents a "provider of binaries", e.g. a package manager like `apt`/`pip`/`npm`, or `env` (which finds binaries in your `$PATH`).
 
@@ -123,7 +123,7 @@ print(django_bin.loaded_abspath)      # Path('/usr/lib/python3.10/site-packages/
 print(django_bin.loaded_version)      # SemVer('5.0.2')
 ```
 
-### [`Binary`](#)
+### [`Binary`](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/pydantic_pkgr/binary.py#:~:text=class%20Binary)
 
 This type represents a single binary dependency aka a package (e.g. `wget`, `curl`, `ffmpeg`, etc.).  
 It can define one or more `BinProvider`s that it supports, along with overrides to customize the behavior for each.
@@ -201,7 +201,7 @@ print(custom_docker.loaded_version)       # '5.0.2'
 print(custom_docker.is_valid)             # True
 ```
 
-### [`SemVer`](#)
+### [`SemVer`](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/pydantic_pkgr/semver.py#:~:text=class%20SemVer)
 
 ```python
 from pydantic_pkgr import SemVer

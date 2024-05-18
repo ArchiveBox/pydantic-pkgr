@@ -72,12 +72,21 @@ print(curl.model_dump_json(indent=4))      # ... everything can also be dumped/l
 ---
 
 
-## Full Example Usage
+## Usage
 
 ```bash
 pip install pydantic-pkgr
 ```
 
+### `BinProvider`
+
+This type represents a "provider of binaries", e.g. a package manager like `apt`/`pip`/`npm`, or `env` (which finds binaries in your `$PATH`).
+
+`BinProvider`s implement the following interface:
+- `on_install(bin_name: str)`
+- `on_get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')`
+- `on_get_version(bin_name: str) -> SemVer('1.0.0')`
+- `on_get_subdeps(bin_name: str) -> InstallStr('somepackage some-extras')`
 
 ```python
 import platform
@@ -108,10 +117,23 @@ pip = PipProvider(
 django_bin = pip.load_or_install(bin_name='django')
 print(django_bin.loaded_abspath)      # Path('/usr/lib/python3.10/site-packages/django/__init__.py')
 print(django_bin.loaded_version)      # SemVer('5.0.2')
+```
 
+### `Binary`
 
+This type represents a single binary dependency aka a package (e.g. `wget`, `curl`, `ffmpeg`, etc.).  
+It can define one or more `BinProvider`s that it supports, along with overrides to customize the behavior for each.
 
-from pydantic_pkgr.types import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
+`Binary`s implement the following interface:
+- `load(bin_name: str) -> Binary`
+- `install(bin_name: str) -> Binary`
+- `load_or_install(bin_name: str) -> Binary`
+- `loaded_provider: str`
+- `loaded_abspath: Path`
+- `loaded_version: SemVer`
+
+```python
+from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
 
 ### Example: Create a re-usable class defining a binary and its providers
 
@@ -173,8 +195,9 @@ print(custom_docker.loaded_provider)      # 'env'
 print(custom_docker.loaded_abspath)       # '/Users/example/custom/bin/podman'
 print(custom_docker.loaded_version)       # '5.0.2'
 print(custom_docker.is_valid)             # True
+```
 
-
+### 
 ### Example: Implement your own package manager behavior by subclassing BinProvider
 
 class CargoProvider(BinProvider):
@@ -204,8 +227,10 @@ class CargoProvider(BinProvider):
 
 cargo = CargoProvider()
 cargo.install(bin_name='ripgrep')
+```
 
-
+### `SemVer` 
+```python
 ### Example: Use the SemVer type directly for parsing & verifying version strings
 
 SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123')  # SemVer('124.0.6367')

@@ -19,7 +19,7 @@ pip install pydantic-pkgr
 > 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 and `django-jsonform` out-of-the-box  
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 
-<sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install and auto-update dependencies (<code>chrome</code>, <code>wget</code>, <code>curl</code>, etc.) at runtime across `macOS`/`Linux`/`Docker`.</i></sub>
+<sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install and auto-update our internet-archiving dependencies at runtime (like <code>chrome</code>, <code>wget</code>, <code>curl</code>) across `macOS`/`Linux`/`Docker`.</i></sub>
 
 ---
 

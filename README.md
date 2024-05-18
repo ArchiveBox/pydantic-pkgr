@@ -17,6 +17,8 @@ pip install pydantic-pkgr
 
 *This was built by [ArchiveBox](https://github.com/ArchiveBox) to auto-install and maintain dependencies like `chrome`, `wget`, `curl`, etc. across all our supported OS's.*
 
+> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
+
 ---
 
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
@@ -35,7 +37,7 @@ print(curl.loaded_version)            # SemVer('8.4.0')
 curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 ```
 
-> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
+### Supported Package Managers
 
 **So far it supports `installing`/`finding installed`/~~`updating`/`removing`~~ packages with:**
 
@@ -54,7 +56,6 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 - `pkg`
 - `nix`
 - *and more using `ansible`/[`pyinfra`](https://github.com/pyinfra-dev/pyinfra)...*
-
 
 
 ---

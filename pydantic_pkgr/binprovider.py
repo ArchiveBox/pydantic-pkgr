@@ -168,6 +168,8 @@ ProviderType = Literal['abspath', 'version', 'subdeps', 'install']
 
 
 class BinProvider(ABC, BaseModel):
+    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+    
     name: BinProviderName
     
     abspath_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)

@@ -427,6 +427,15 @@ print(rg.loaded_version)
 - [ ] Provide editability and actions via Django Admin UI using [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) and [`django-jsonform`](https://django-jsonform.readthedocs.io/en/latest/)
 - [ ] Write more documentation
 
+### Other Packages We Like
+
+- https://github.com/MrThearMan/django-signal-webhooks
+- https://github.com/MrThearMan/django-admin-data-views
+- https://github.com/lazybird/django-solo
+- https://github.com/joshourisman/django-pydantic-settings
+- https://github.com/surenkov/django-pydantic-field
+- https://github.com/jordaneremieff/djantic
+
 [coverage-badge]: https://coveralls.io/repos/github/ArchiveBox/pydantic-pkgr/badge.svg?branch=main
 [status-badge]: https://img.shields.io/github/actions/workflow/status/ArchiveBox/pydantic-pkgr/test.yml?branch=main
 [pypi-badge]: https://img.shields.io/pypi/v/archivebox

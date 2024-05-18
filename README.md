@@ -15,7 +15,7 @@
 pip install pydantic-pkgr
 ```
 
-> 📦 Provides consistent cross-platform interfaces for dependency installation at runtime  
+> 📦 Provides consistent cross-platform interfaces for dependency resolution & installation at runtime  
 > 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 and `django-jsonform` out-of-the-box  
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong typing and json-compatibility  
 

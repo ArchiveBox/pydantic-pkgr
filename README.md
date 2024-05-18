@@ -315,8 +315,8 @@ ADMIN_DATA_VIEWS = {
 ```
 
 <details>
-<summary><i>Note: If you override the default site admin, you must register the views manually...</i></summary><br/>
-<br/>
+<summary><i>Note: If you override the default site admin, you must register the views manually...</i></summary>
+<br/><br/>
 <b><code>admin.py</code>:</b>
 <br/>
 <pre><code>
@@ -337,7 +337,6 @@ custom_admin.get_app_list           = get_app_list.__get__(custom_admin, YourSit
 custom_admin.get_admin_data_urls    = get_admin_data_urls.__get__(custom_admin, YourSiteAdmin)
 custom_admin.admin_data_index_view  = admin_data_index_view.__get__(custom_admin, YourSiteAdmin)
 custom_admin.get_urls               = get_urls(custom_admin.get_urls).__get__(custom_admin, YourSiteAdmin)
-
 </code></pre>
 </details>
 

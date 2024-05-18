@@ -1,4 +1,4 @@
-# `pydantic-pkgr`<br/><small>System package manager APIs in strongly typed Python</small>
+<h1><a href="https://github.com/ArchiveBox/pydantic-pkgr"><code>pydantic-pkgr</code></a><br/><small>System package manager APIs in strongly typed Python</small></h1>
 
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]
@@ -8,6 +8,8 @@
 [![Python Version][version-badge]][pypi]
 [![Django Version][django-badge]][pypi]
 [![Downloads][downloads-badge]][pypi]
+
+<br/>
 
 **This is a [Python 3 library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages with a variety of package managers.**
 
@@ -19,15 +21,15 @@ pip install pydantic-pkgr
 > 🌈 Supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 and `django-jsonform` out-of-the-box  
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 
-<sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install and auto-update our internet-archiving dependencies at runtime (like <code>chrome</code>, <code>wget</code>, <code>curl</code>) across `macOS`/`Linux`/`Docker`.</i></sub>
+<sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install & auto-update our extractor dependencies at runtime (<code>chrome</code>, <code>wget</code>, <code>curl</code>, etc.) on `macOS`/`Linux`/`Docker`.</i></sub>
 
----
+<br/>
 
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
 
 **Documentation**: [https://github.com/ArchiveBox/pydantic-pkgr/blob/main/README.md](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/README.md)
 
----
+<br/>
 
 ```python
 from pydantic_pkgr import AptProvider

@@ -86,6 +86,8 @@ pip install pydantic-pkgr
 
 ### [`BinProvider`](https://github.com/ArchiveBox/pydantic-pkgr/blob/main/pydantic_pkgr/binprovider.py#:~:text=class%20BinProvider)
 
+**Implementations: `EnvProvider`, `AptProvider`, `BrewProvider`, `PipProvider`, `NpmProvider`**
+
 This type represents a "provider of binaries", e.g. a package manager like `apt`/`pip`/`npm`, or `env` (which finds binaries in your `$PATH`).
 
 `BinProvider`s implement the following interface:

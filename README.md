@@ -100,10 +100,7 @@ This type represents a "provider of binaries", e.g. a package manager like `apt`
 ```python
 import platform
 from typing import List
-
-
-from pydantic_pkgr.binproviders import EnvProvider, PipProvider, AptProvider, BrewProvider
-
+from pydantic_pkgr import EnvProvider, PipProvider, AptProvider, BrewProvider
 
 ### Example: Finding an existing install of bash using the system $PATH environment
 env = EnvProvider()
@@ -143,7 +140,6 @@ It can define one or more `BinProvider`s that it supports, along with overrides 
 from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
 
 ### Example: Create a re-usable class defining a binary and its providers
-
 class YtdlpBinary(Binary):
     name: BinName = 'ytdlp'
     description: str = 'YT-DLP (Replacement for YouTube-DL) Media Downloader'
@@ -168,7 +164,6 @@ print(ytdlp.is_valid)                     # True
 from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
 
 #### Example: Create a binary that uses Podman if available, or Docker otherwise
-
 class DockerBinary(Binary):
     name: BinName = 'docker'
 
@@ -195,7 +190,6 @@ print(docker.loaded_abspath)              # '/usr/local/bin/podman'
 print(docker.loaded_version)              # Ž6.0.2'
 print(docker.is_valid)                    # True
 
-
 # You can also pass **kwargs to override properties at runtime,
 # e.g. if you want to force the abspath to be at a specific path:
 custom_docker = DockerBinary(loaded_abspath='~/custom/bin/podman').load()
@@ -212,7 +206,6 @@ print(custom_docker.is_valid)             # True
 from pydantic_pkgr import SemVer
 
 ### Example: Use the SemVer type directly for parsing & verifying version strings
-
 SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123')  # SemVer(124, 0, 6367')
 SemVer.parse('2024.04.05)                                           # SemVer(2024, 4, 5)
 SemVer.parse('1.9+beta')                                            # SemVer(1, 9, 0)
@@ -278,7 +271,7 @@ assert obj.optional_binaries[0].provider == DEFAULT_PROVIDER
 
 <br/>
 
-### Django Admin Usage: Show read-only list of BinProviders and Binaries in Admin UI
+### Django Admin Usage: Show read-only list of Binaries in Admin UI
 
 ```bash
 pip install pydantic-pkgr django-admin-data-views
@@ -409,9 +402,11 @@ print(rg.loaded_version)
 ### TODO
 
 - [x] Implement initial basic support for `apt`, `brew`, and `pip`
+- [x] Provide editability and actions via Django Admin UI using [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) and [`django-jsonform`](https://django-jsonform.readthedocs.io/en/latest/)
+- [ ] Implement `update` and `remove` actions on BinProviders
 - [ ] Add `preinstall` and `postinstall` hooks for things like adding `apt` sources and running cleanup scripts
-- [ ] Provide editability and actions via Django Admin UI using [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) and [`django-jsonform`](https://django-jsonform.readthedocs.io/en/latest/)
-- [ ] Write more documentation
+- [ ] Implement more package managers
+
 
 ### Other Packages We Like
 

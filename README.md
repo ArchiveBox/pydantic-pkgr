@@ -33,30 +33,37 @@ pip install pydantic-pkgr
 <br/>
 
 ```python
-from pydantic_pkgr import AptProvider
+from pydantic_pkgr import BinProvider, AptProvider, Binary
 
-# Example: Install curl using the apt provider
 apt = AptProvider()
 curl = apt.install('curl')
 
-print(curl.is_valid)                       # True
-print(curl.provider)                       # 'apt'
-print(curl.abspath)                        # Path('/usr/bin/curl')
-print(curl.version)                        # SemVer('7.81.0')
-curl.exec(['--version'])                   # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
+print(curl.abspath,         curl.version,    curl.provider, curl.is_valid)
+#     Path('/usr/bin/curl') SemVer('7.81.0') 'apt'          True
+
+proc = curl.exec(['-fsSL', 'https://example.com'])
+
+print(proc.stdout,       proc.stderr, proc.returncode)
+#     <!doctype html>...              0                
 ```
 
 ```python
-from pydantic_pkgr import Binary, BrewProvider, EnvProvider
+from pydantic_pkgr import Binary, BinProvider, BrewProvider, EnvProvider
 
 # Example: Create a re-usable curl Binary object that defines its install methods
 curl = Binary(name='curl', providers=[BrewProvider(), EnvProvider()])
-curl = curl.install()
 
-print(curl.provider)                       # 'brew'
-print(curl.abspath)                        # Path('/opt/homebrew/bin/curl')
-print(curl.version)                        # SemVer('8.4.0')
-curl.exec(['--version'])                   # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
+# or for nicer type checking ergonomics, use class-based definitions:
+class CurlBinary(Binary):
+    name: str = 'curl'
+    providers list[BinProvider] = [BrewProvider(), EnvProvider()]
+curl = CurlBinary()
+
+# it works the same either way
+curl: Binary = curl.install()
+print(curl.abspath,                  curl.version,    curl.provider, curl.is_valid)
+#     Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew'          True
+curl.exec(['--version'])             # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```
 
 ```python
@@ -184,16 +191,16 @@ class DockerBinary(Binary):
     
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
         'env': {
-            # prefer podman if installed (or fall back to docker)
+            # example: prefer podman if installed (falling back to docker)
             'abspath': lambda: os.which('podman') or os.which('docker') or os.which('docker-ce'),
         },
         'apt': {
-            # install docker OR docker-ce (varies based on CPU architecture)
+            # example: vary installed package name based on your CPU architecture
             'subdeps': lambda: {
                 'amd64': 'docker',
                 'armv7l': 'docker-ce',
                 'arm64': 'docker-ce',
-            }.get(platform.machine()) or 'docker',
+            }.get(platform.machine(), 'docker'),
         },
     }
 

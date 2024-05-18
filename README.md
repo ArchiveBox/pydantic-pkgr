@@ -1,8 +1,31 @@
-# pydantic-pkgr
+# `pydantic-pkgr`
+
+[![Coverage Status][coverage-badge]][coverage]
+[![GitHub Workflow Status][status-badge]][status]
+[![PyPI][pypi-badge]][pypi]
+[![GitHub][licence-badge]][licence]
+[![GitHub Last Commit][repo-badge]][repo]
+[![GitHub Issues][issues-badge]][issues]
+[![Downloads][downloads-badge]][pypi]
+
+[![Python Version][version-badge]][pypi]
+[![Django Version][django-badge]][pypi]
+
+```shell
+pip install pydantic-pkgr
+```
+
+---
+
+**Documentation**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
+
+**Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
+
+---
 
 This is a Python package that allows you to manage system dependencies with a variety of package managers.
 
-> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) and it supports `django` out-of-the-box.
+> It supports [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0.
   
 **So far it supports `installing`/`updating`/`removing`/`finding installed` packages with:**
 
@@ -316,3 +339,20 @@ admin.site.register(MyModel, MyModelAdmin)
 - [] Add `preinstall` and `postinstall` hooks for things like adding `apt` sources and running cleanup scripts
 - [] Provide editability and actions via Django Admin UI using [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) and [`django-jsonform`](https://django-jsonform.readthedocs.io/en/latest/)
 - [] Write more documentation
+
+[coverage-badge]: https://coveralls.io/repos/github/ArchiveBox/pydantic-pkgr/badge.svg?branch=main
+[status-badge]: https://img.shields.io/github/actions/workflow/status/ArchiveBox/pydantic-pkgr/test.yml?branch=main
+[pypi-badge]: https://img.shields.io/pypi/v/pydantic-pkgr
+[licence-badge]: https://img.shields.io/github/license/ArchiveBox/pydantic-pkgr
+[repo-badge]: https://img.shields.io/github/last-commit/ArchiveBox/pydantic-pkgr
+[issues-badge]: https://img.shields.io/github/issues-raw/ArchiveBox/pydantic-pkgr
+[version-badge]: https://img.shields.io/pypi/pyversions/pydantic-pkgr
+[downloads-badge]: https://img.shields.io/pypi/dm/pydantic-pkgr
+[django-badge]: https://img.shields.io/pypi/djversions/pydantic-pkgr
+
+[coverage]: https://coveralls.io/github/ArchiveBox/pydantic-pkgr?branch=main
+[status]: https://github.com/ArchiveBox/pydantic-pkgr/actions/workflows/test.yml
+[pypi]: https://pypi.org/project/pydantic-pkgr
+[licence]: https://github.com/ArchiveBox/pydantic-pkgr/blob/main/LICENSE
+[repo]: https://github.com/ArchiveBox/pydantic-pkgr/commits/main
+[issues]: https://github.com/ArchiveBox/pydantic-pkgr/issues

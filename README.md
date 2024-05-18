@@ -115,7 +115,7 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 
 ### Example: Finding/Installing django with pip (w/ customized binpath resolution behavior)
 pip = PipProvider(
-    abspath_provider={'*': lambda bin_name, **_: inspect.getfile(bin_name)},
+    abspath_provider={'*': lambda bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
 )
 django_bin = pip.load_or_install(bin_name='django')
 print(django_bin.loaded_abspath)      # Path('/usr/lib/python3.10/site-packages/django/__init__.py')

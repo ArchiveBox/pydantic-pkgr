@@ -1,4 +1,4 @@
-# `pydantic-pkgr`
+# Pydantic-Based Package Management Utilites (`pydantic-pkgr`)
 
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]

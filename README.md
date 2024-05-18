@@ -17,7 +17,7 @@ pip install pydantic-pkgr
 
 *This was built by [ArchiveBox](https://github.com/ArchiveBox) to auto-install and maintain dependencies like `chrome`, `wget`, `curl`, etc. across all our supported OS's.*
 
-> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
+> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong typing guarantees and it supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
 
 ---
 

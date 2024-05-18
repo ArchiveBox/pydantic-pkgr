@@ -146,7 +146,7 @@ class YtdlpBinary(Binary):
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
         'pip': {'subdeps': lambda: 'yt-dlp[default,curl-cffi]'}},
         'apt': {'subdeps': lambda: 'yt-dlp ffmpeg'}},
-        'brew': {'subdeps': lambda: 'yt-dlp ffmpeg'}},
+        'brew': {'subdeps': 'some.other.module.get_brew_subdeps'}},  # also accepts dotted import path to function
     }
 
 ytdlp = YtdlpBinary().load_or_install()
@@ -154,8 +154,10 @@ print(ytdlp.loaded_provider)              # 'brew'
 print(ytdlp.loaded_abspath)               # Path('/opt/homebrew/bin/yt-dlp')
 print(ytdlp.loaded_version)               # SemVer('2024.4.9')
 print(ytdlp.is_valid)                     # True
+```
 
-
+```python
+from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
 
 #### Example: Create a binary that uses Podman if available, or Docker otherwise
 
@@ -199,6 +201,8 @@ print(custom_docker.is_valid)             # True
 ### `SemVer`
 
 ```python
+from pydantic_pkgr import SemVer
+
 ### Example: Use the SemVer type directly for parsing & verifying version strings
 
 SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123')  # SemVer('124.0.6367')
@@ -218,9 +222,8 @@ SemVer.parse('1.9+beta')                                            # SemVer(1, 
 The pydantic ecosystem help us get auto-generated, type-checked Django fields & forms 
 that support `BinProvider` and `Binary`.
 
-
+> [!TIP]
 > For the full experience, we recommend installing these 3 excellent packages:
-> 
 > - [`django-admin-data-views`](https://github.com/MrThearMan/django-admin-data-views)
 > - [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field)
 > - [`django-jsonform`](https://django-jsonform.readthedocs.io/)  

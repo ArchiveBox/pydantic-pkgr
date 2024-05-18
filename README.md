@@ -17,8 +17,6 @@ It's designed to help Python apps check for and install local binaries outside o
 pip install pydantic-pkgr
 ```
 
-> [!WARNING]
-> This is [ALPHA] software under active development, not ready for production use yet.
 
 > ✨ Built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 for strong static typing guarantees and json import/export compatibility  
 > 📦 Provides consistent cross-platform interfaces for dependency resolution & installation at runtime  
@@ -28,6 +26,10 @@ pip install pydantic-pkgr
 <sub><i>Built by <a href="https://github.com/ArchiveBox">ArchiveBox</a> to install & auto-update our extractor dependencies at runtime (<code>chrome</code>, <code>wget</code>, <code>curl</code>, etc.) on `macOS`/`Linux`/`Docker`.</i></sub>
 
 <br/>
+
+> [!WARNING]
+> This is [ALPHA] software under active development, not ready for production use yet.
+
 
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
 

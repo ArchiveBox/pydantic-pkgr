@@ -1,4 +1,4 @@
-# Pydantic-Based Package Management Utilites (`pydantic-pkgr`)
+# `pydantic-pkgr`: A modern system package management library for Python
 
 [![GitHub][licence-badge]][licence]
 [![GitHub Last Commit][repo-badge]][repo]

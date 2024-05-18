@@ -13,6 +13,8 @@
 pip install pydantic-pkgr
 ```
 
+**This is a Python package that allows you to manage system dependencies with a variety of package managers.**
+
 ---
 
 **Documentation**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)
@@ -21,10 +23,18 @@ pip install pydantic-pkgr
 
 ---
 
-This is a Python package that allows you to manage system dependencies with a variety of package managers.
+```python
+from pydantic_pkgr import AptProvider
 
-> It supports [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0.
-  
+apt = AptProvider()
+curl = apt.load_or_install(bin_name='curl')
+print(curl.loaded_version)            # Path('/usr/bin/curl')
+print(curl.loaded_version)            # SemVer('8.4.0')
+curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
+```
+
+> It's built with [`pydantic`](https://pydantic-docs.helpmanual.io/) v2 and supports [`django`](https://docs.djangoproject.com/en/5.0/) >= 4.0 out-of-the-box.
+
 **So far it supports `installing`/`updating`/`removing`/`finding installed` packages with:**
 
 - `apt`

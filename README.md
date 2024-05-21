@@ -62,13 +62,13 @@ for binary in dependencies:
 ```python
 from pydantic_pkgr import Binary, BinProvider, BrewProvider, EnvProvider
 
-# Or for better type checking ergonomics, use class-based definitions:
+# you can also define binaries as classes, making them usable for type checking
 class CurlBinary(Binary):
     name: str = 'curl'
     providers: list[BinProvider] = [BrewProvider(), EnvProvider()]
 
-# it works the same either way
 curl = CurlBinary().install()
+assert isinstance(curl, CurlBinary)                              # CurlBinary is a unique type you can use in annotations now
 print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew' True
 curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```

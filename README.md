@@ -29,7 +29,7 @@ pip install pydantic-pkgr
 <br/>
 
 > [!WARNING]
-> This is [ALPHA] software under active development for use in [ArchiveBox](https://github.com/ArchiveBox/ArchiveBox), it's not ready for general public / production use yet.
+> This is `ALPHA` software under active development, it's not ready for production use yet.
 
 
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)

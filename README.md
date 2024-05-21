@@ -62,10 +62,7 @@ for binary in dependencies:
 ```python
 from pydantic_pkgr import Binary, BinProvider, BrewProvider, EnvProvider
 
-# Example: Create a re-usable curl Binary object that defines its install methods
-curl = Binary(name='curl', providers=[BrewProvider(), EnvProvider()])
-
-# or for nicer type checking ergonomics, use class-based definitions:
+# Or for better type checking ergonomics, use class-based definitions:
 class CurlBinary(Binary):
     name: str = 'curl'
     providers list[BinProvider] = [BrewProvider(), EnvProvider()]
@@ -80,16 +77,21 @@ curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x
 
 ```python
 from pyinfra.operations import apt
-from pydantic_pkgr import Binary
+from pydantic_pkgr import Binary, EnvProvider, PipProvider
 
-# Example: Verify & use packages installed by other tools (e.g. pyinfra/ansible)
+# You can also directly with the package manager (aka BinProvider) APIs
+apt = AptProvider()
+print(apt.PATH, apt.get_abspaths('wget'), apt.install('wget'))
+
+# It even plays nicely with packages installed by other tools (e.g. pyinfra/ansible)
 apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
 
-# Load it as a Binary provides a nice type-checkable, validated, serializable handle for it
+# our Binary API provides a nice type-checkable, validated, serializable handle
 ffmpeg = Binary(name='ffmpeg').load()
-ffmpeg.exec(['-i', 'input.mp4', 'output.avi'])
+print(ffmpeg.loaded_abspaths)      # show all the ffmpeg binaries found in $PATH
+ffmpeg.exec(cmd=['-i', 'input.mp4', 'output.avi'])
 
-print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True
+print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True ...
 print(ffmpeg.model_dump_json())     # ... everything can also be dumped/loaded as json
 print(ffmpeg.model_json_schema())   # ... all types provide OpenAPI-ready JSON schemas
 ```

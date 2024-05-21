@@ -273,31 +273,35 @@ Usage in your `models.py`:
 from django.db import models
 from django_pydantic_field import SchemaField
 
-from pydantic_pkgr import BinProvider, EnvProvider, Binary
+from pydantic_pkgr import BinProvider, EnvProvider, Binary, SemVer
 
 DEFAULT_PROVIDER = EnvProvider()
 
-class MyModel(models.Model):
-    ...
+class Dependency(models.Model):
+    """Example model for storing information about a dependency"""
 
-    # SchemaField supports storing a single BinProvider/Binary in a field...
-    favorite_binprovider: BinProvider = SchemaField(default=DEFAULT_PROVIDER)
-
-    # ... or inside a collection type like list[...] dict[...]
-    optional_binaries: list[Binary] = SchemaField(default=[])
+    name = models.CharField(max_length=63)
+    min_version: SemVer = SchemaField(default=(0,0,1))
+    binaries: list[Binary] = SchemaField(default=[])
+    default_binprovider: BinProvider = SchemaField(default=DEFAULT_PROVIDER)
 
 curl = Binary(name='curl', providers=[DEFAULT_PROVIDER]).load()
 
-obj = MyModel(optional_binaries=[curl])
+obj = Dependency(default_binprovider=DEFAULT_PROVIDER, binaries=[curl], min_version=SemVer('0.1.5'))
 obj.save()
 
-assert obj.favorite_binprovider == DEFAULT_PROVIDER
-assert obj.optional_binaries[0].provider == DEFAULT_PROVIDER
+assert obj.default_binprovider == DEFAULT_PROVIDER
+assert obj.binaries[0].provider == DEFAULT_PROVIDER
 ```
+*For a full example see our provided [`django_example_project/`](https://github.com/ArchiveBox/pydantic-pkgr/tree/main/django_example_project)...*
 
 <br/>
 
 ### Django Admin Usage: Show read-only list of Binaries in Admin UI
+
+<img width="500" alt="Django Admin binaries list view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/dce61eea-207c-4440-b742-ea4c9f3a092f">
+<img width="400" alt="Django Admin binaries detail view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/b81f9d5f-08ca-475a-94f4-f90e44d085a1">
+
 
 ```bash
 pip install pydantic-pkgr django-admin-data-views
@@ -334,6 +338,7 @@ ADMIN_DATA_VIEWS = {
     ],
 }
 ```
+*For a full example see our provided [`django_example_project/`](https://github.com/ArchiveBox/pydantic-pkgr/tree/main/django_example_project)...*
 
 <details>
 <summary><i>Note: If you override the default site admin, you must register the views manually...</i></summary>
@@ -356,6 +361,8 @@ register_admin_views(custom_admin)
 <br/>
 
 ### ~~Django Admin Usage: JSONFormWidget for editing `BinProvider` and `Binary` data~~
+
+<img src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/63705a57-4f62-4dbe-9f3a-0515323d8b5e" width="400px"/>
 
 > [!IMPORTANT]
 > This feature is coming soon but is blocked on a few issues being fixed first:  
@@ -380,6 +387,7 @@ class MyModelAdmin(admin.ModelAdmin):
 
 admin.site.register(MyModel, MyModelAdmin)
 ```
+*For a full example see our provided [`django_example_project/`](https://github.com/ArchiveBox/pydantic-pkgr/tree/main/django_example_project)...*
 
 <br/>
 

@@ -22,6 +22,7 @@ class TestSemVer(unittest.TestCase):
         self.assertEqual(SemVer('1.2+beta'), (1, 2, 0))
         self.assertEqual(SemVer('1.2.4(1)+beta'), (1, 2, 4))
         self.assertEqual(SemVer('1.2+beta(3)'), (1, 2, 3))
+        self.assertEqual(SemVer('1.2+6-be1ta(4)'), (1, 2, 6))
         self.assertEqual(SemVer((1, 2, 3)), (1, 2, 3))
         self.assertEqual(getattr(SemVer((1, 2, 3)), 'full_text'), '1.2.3')
         self.assertEqual(SemVer(('1', '2', '3')), (1, 2, 3))

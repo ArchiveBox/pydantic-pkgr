@@ -119,6 +119,9 @@ class SemVer(SemVerTuple):
     def __str__(self):
         return '.'.join(str(chunk) for chunk in self)
 
+
+    # Not needed as long as we dont stray any further from a basic NamedTuple
+    # if we start overloading more methods or it becomes a fully custom type, then we probably need this:
     # @classmethod
     # def __get_pydantic_core_schema__(cls, source: Type[Any], handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
     #     default_schema = handler(source)

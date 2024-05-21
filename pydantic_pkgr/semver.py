@@ -1,5 +1,6 @@
 __package__ = 'archivebox.plugantic'
 
+import re
 import sys
 import inspect
 import importlib
@@ -93,14 +94,14 @@ class SemVer(SemVerTuple):
             # raise Exception('Tried to parse semver from empty version output (is binary installed and available?)')
             return None
 
-        just_numbers = lambda col: col.lower().strip('v').split('+')[0].split('-')[0].split('_')[0]
+        just_numbers = lambda col: '.'.join(re.split(r'[\D]', col.lower().strip('v'), 4)[:3])  # split on any non-num character e.g. 5.2.26(1)-release -> ['5', '2', '26', '1', '', '', ...]
         contains_semver = lambda col: (
             col.count('.') in (1, 2, 3)
             and all(chunk.isdigit() for chunk in col.split('.')[:3])  # first 3 chunks can only be nums
         )
 
         full_text = version_stdout.split('\n')[0].strip()
-        first_line_columns = full_text.split()[:4]
+        first_line_columns = full_text.split()[:5]
         version_columns = list(filter(contains_semver, map(just_numbers, first_line_columns)))
         
         # could not find any column of first line that looks like a version number, despite there being some text
@@ -136,13 +137,13 @@ assert SemVer('') == None
 assert SemVer.parse('') == None
 assert SemVer(1) == (1, 0, 0)
 assert SemVer(1, 2) == (1, 2, 0)
-assert SemVer('1.2+234234') == (1, 2, 0)
+assert SemVer('1.2+234234') == (1, 2, 234234)
 assert SemVer((1, 2, 3)) == (1, 2, 3)
 assert getattr(SemVer((1, 2, 3)), 'full_text') == '1.2.3'
 assert SemVer(('1', '2', '3')) == (1, 2, 3)
 assert SemVer.parse('5.6.7') == (5, 6, 7)
 assert SemVer.parse('124.0.6367.208') == (124, 0, 6367)
-assert SemVer.parse('Google Chrome 124.1+234.234') == (124, 1, 0)
+assert SemVer.parse('Google Chrome 124.1+234.234') == (124, 1, 234)
 assert SemVer.parse('Google Ch1rome 124.0.6367.208') == (124, 0, 6367)
 assert SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123\n123.456.324') == (124, 0, 6367)
 assert getattr(SemVer.parse('Google Chrome 124.0.6367.208+beta_234. 234.234.123\n123.456.324'), 'full_text') == 'Google Chrome 124.0.6367.208+beta_234. 234.234.123'

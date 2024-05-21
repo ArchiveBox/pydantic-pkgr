@@ -299,8 +299,8 @@ assert obj.binaries[0].provider == DEFAULT_PROVIDER
 
 ### Django Admin Usage: Show read-only list of Binaries in Admin UI
 
-<img width="500" alt="Django Admin binaries list view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/dce61eea-207c-4440-b742-ea4c9f3a092f">
-<img width="400" alt="Django Admin binaries detail view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/b81f9d5f-08ca-475a-94f4-f90e44d085a1">
+<img height="200" alt="Django Admin binaries list view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/dce61eea-207c-4440-b742-ea4c9f3a092f">
+<img height="200" alt="Django Admin binaries detail view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/b81f9d5f-08ca-475a-94f4-f90e44d085a1">
 
 
 ```bash

@@ -65,7 +65,7 @@ from pydantic_pkgr import Binary, BinProvider, BrewProvider, EnvProvider
 # Or for better type checking ergonomics, use class-based definitions:
 class CurlBinary(Binary):
     name: str = 'curl'
-    providers list[BinProvider] = [BrewProvider(), EnvProvider()]
+    providers: list[BinProvider] = [BrewProvider(), EnvProvider()]
 
 curl = CurlBinary()
 

@@ -461,6 +461,20 @@ class PipProvider(BinProvider):
             print(proc.stderr.strip().decode())
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
 
+class NpmProvider(BinProvider):
+    name: BinProviderName = 'npm'
+
+    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
+        subdeps = subdeps or self.on_get_subdeps(bin_name)
+        print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
+        
+        proc = run(['npm', 'install', '-g', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
+        
+        if proc.returncode != 0:
+            print(proc.stdout.strip().decode())
+            print(proc.stderr.strip().decode())
+            raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
+
 
 class AptProvider(BinProvider):
     name: BinProviderName = 'apt'

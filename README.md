@@ -39,14 +39,24 @@ pip install pydantic-pkgr
 <br/>
 
 ```python
-from pydantic_pkgr import AptProvider, Binary
+from pydantic_pkgr import *
 
-apt = AptProvider()
-curl = apt.install('curl')
+apt, brew, pip, npm, env = AptProvider(), BrewProvider(), PipProvider(), NpmProvider(), EnvProvider()
 
-print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True
+dependencies = [
+    Binary(name='curl',       providers=[env, apt, brew]),
+    Binary(name='wget',       providers=[env, apt, brew]),
+    Binary(name='yt-dlp',     providers=[env, apt, brew, pip]),
+    Binary(name='playwright', providers=[env, pip, npm]),
+    Binary(name='puppeteer',  providers=[env, npm]),
+]
+for binary in dependencies:
+    binary = binary.load_or_install()
 
-proc = curl.exec(['-fsSL', 'https://example.com'])               # <!doctype html>...
+    print(binary.abspath, binary.version, binary.provider, binary.is_valid)
+    # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True ...
+
+proc = Binary(name='curl').load().exec(['-fsSL', 'https://example.com'])    # <!doctype html>...
 ```
 
 ```python

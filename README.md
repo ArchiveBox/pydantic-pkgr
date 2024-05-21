@@ -124,10 +124,11 @@ This type represents a "provider of binaries", e.g. a package manager like `apt`
 
 `BinProvider`s implement the following interface:
 - `load(bin_name: str)`, `install(bin_name: str)`, `load_or_install(bin_name: str)` `->` `Binary`
-- `install(bin_name: str)`
+- `get_abspaths(bin_name: str) -> [Path('/absolute/path/to/bin'), Path('/other/paths/to/bin'), ...]`
 - `get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')`
 - `get_version(bin_name: str) -> SemVer('1.0.0')`
 - `get_subdeps(bin_name: str) -> InstallStr('somepackage some-extras')`
+- `@PATH -> PATHStr('/usr/local/bin:/usr/bin:/bin:...')`
 
 ```python
 import platform

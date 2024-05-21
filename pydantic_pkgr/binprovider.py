@@ -3,7 +3,7 @@ import sys
 import shutil
 import operator
 
-from typing import Callable, Any, Optional, Type, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
+from typing import Callable, Any, Optional, Type, List, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
 from typing_extensions import Self
 from collections import namedtuple
 from pathlib import Path
@@ -70,7 +70,9 @@ HostExecutablePath = Annotated[HostExistsPath, AfterValidator(path_is_executable
 
 @validate_call
 def path_is_abspath(path: Path) -> Path:
-    return path.resolve()
+    path = path.expanduser().absolute()   # resolve ~/ -> /home/<username/ and ../../
+    assert path.resolve()                 # make sure symlinks can be resolved, but dont return resolved link
+    return path
 
 HostAbsPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)]
 HostBinPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)] # removed: AfterValidator(path_is_executable)
@@ -82,13 +84,13 @@ def bin_abspath(bin_path_or_name: BinName | Path) -> HostBinPath | None:
 
     if str(bin_path_or_name).startswith('/'):
         # already a path, get its absolute form
-        abspath = Path(bin_path_or_name).resolve()
+        abspath = Path(bin_path_or_name).expanduser().absolute()
     else:
         # not a path yet, get path using shutil.which
         binpath = shutil.which(bin_path_or_name)
         if not binpath:
             return None
-        abspath = Path(binpath).resolve()
+        abspath = Path(binpath).expanduser().absolute()
 
     try:
         return TypeAdapter(HostBinPath).validate_python(abspath)
@@ -110,6 +112,8 @@ class ShallowBinary(BaseModel):
 
 
     name: BinName = ''
+
+    providers_supported: List['BinProvider'] = Field(default=[], alias='providers')
 
     loaded_provider: BinProviderName = Field(default='env', alias='provider')
     loaded_abspath: HostBinPath = Field(alias='abspath')
@@ -142,6 +146,11 @@ class ShallowBinary(BaseModel):
             and self.loaded_version
             and (self.is_executable or self.is_script)
         )
+
+    @computed_field
+    @property
+    def loaded_respath(self) -> HostBinPath | None:
+        return self.loaded_abspath and self.loaded_abspath.resolve()
 
     def exec(self, args) -> CompletedProcess:
         return run([self.abspath, *args], stdout=PIPE, stderr=PIPE, text=True)
@@ -396,6 +405,7 @@ class BinProvider(BaseModel):
             loaded_provider=self.name,
             loaded_abspath=installed_abspath,
             loaded_version=installed_version,
+            providers_supported=[self],
         )
         self._install_cache[bin_name] = result
         return result
@@ -426,6 +436,7 @@ class BinProvider(BaseModel):
             loaded_provider=self.name,
             loaded_abspath=installed_abspath,
             loaded_version=installed_version,
+            providers_supported=[self],
         )
 
     @validate_call

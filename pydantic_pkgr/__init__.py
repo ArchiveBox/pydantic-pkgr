@@ -12,6 +12,7 @@ from .binprovider import (
     PipProvider,
     InstallStr,
     ShallowBinary,
+    bin_version,
 )
 
 from .binary import (

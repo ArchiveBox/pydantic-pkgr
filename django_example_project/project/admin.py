@@ -43,21 +43,3 @@ class DependencyAdmin(admin.ModelAdmin):
     formfield_overrides = {PydanticSchemaField: {"widget": PatchedJSONFormWidget}}
 
 admin.site.register(Dependency, DependencyAdmin)
-
-
-import pydantic_pkgr
-
-
-def get_all_binaries() -> list[pydantic_pkgr.Binary]:
-    """Monkey patch this function implement getting the list of binaries to render"""
-    binary_list = []
-
-    for dependency in Dependency.objects.all():
-        for binary in dependency.binaries:
-            binary_list.append(binary)
-
-    return binary_list
-
-
-
-pydantic_pkgr.views.get_all_binaries = get_all_binaries

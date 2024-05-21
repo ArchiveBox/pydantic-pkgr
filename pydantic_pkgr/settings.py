@@ -1,3 +1,5 @@
+from typing import Callable
+
 from django.conf import settings
 from django.utils.module_loading import import_string
 
@@ -7,8 +9,17 @@ PYDANTIC_PKGR_GET_BINARY        = getattr(settings, 'PYDANTIC_PKGR_GET_BINARY', 
 
 
 if isinstance(PYDANTIC_PKGR_GET_ALL_BINARIES, str):
-    PYDANTIC_PKGR_GET_ALL_BINARIES = import_string(PYDANTIC_PKGR_GET_ALL_BINARIES)
+    get_all_pkgr_binaries = import_string(PYDANTIC_PKGR_GET_ALL_BINARIES)
+elif isinstance(PYDANTIC_PKGR_GET_ALL_BINARIES, Callable):
+    get_all_pkgr_binaries = PYDANTIC_PKGR_GET_ALL_BINARIES
+else:
+    raise ValueError('PYDANTIC_PKGR_GET_ALL_BINARIES must be a function or dotted import path to a function')
 
 if isinstance(PYDANTIC_PKGR_GET_BINARY, str):
-    PYDANTIC_PKGR_GET_BINARY = import_string(PYDANTIC_PKGR_GET_BINARY)
+    get_pkgr_binary = import_string(PYDANTIC_PKGR_GET_BINARY)
+elif isinstance(PYDANTIC_PKGR_GET_BINARY, Callable):
+    get_pkgr_binary = PYDANTIC_PKGR_GET_BINARY
+else:
+    raise ValueError('PYDANTIC_PKGR_GET_BINARY must be a function or dotted import path to a function')
+
 

@@ -520,12 +520,21 @@ class EnvProvider(BinProvider):
 
     abspath_provider: ProviderLookupDict = {
         **BinProvider.__fields__['abspath_provider'].default,
-        'python': lambda: Path(sys.executable),
+        'python': 'self.get_python_abspath',
     }
     version_provider: ProviderLookupDict = {
         **BinProvider.__fields__['version_provider'].default,
-        'python': lambda: '{}.{}.{}'.format(*sys.version_info[:3]),
+        'python': 'self.get_python_version',
     }
+
+    @staticmethod
+    def get_python_abspath():
+        return Path(sys.executable)
+
+    @staticmethod
+    def get_python_version():
+        return '{}.{}.{}'.format(*sys.version_info[:3])
+
 
     def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
         """The env provider is ready-only and does not install any packages, so this is a no-op"""

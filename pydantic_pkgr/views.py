@@ -6,7 +6,6 @@ from django.utils.html import format_html, mark_safe
 from admin_data_views.typing import TableContext, ItemContext
 from admin_data_views.utils import render_with_table_view, render_with_item_view, ItemLink
 
-from django.conf import settings
 from django.utils.module_loading import import_string
 
 from .binary import Binary
@@ -44,7 +43,7 @@ def binaries_list_view(request: HttpRequest, **kwargs) -> TableContext:
         "Description": [],
     }
 
-    for binary in settings.PYDANTIC_PKGR_GET_ALL_BINARIES():
+    for binary in settings.get_all_pkgr_binaries():
         binary = binary.load_or_install()
 
         rows['Binary'].append(ItemLink(binary.name, key=binary.name))
@@ -66,7 +65,7 @@ def binary_detail_view(request: HttpRequest, key: str, **kwargs) -> ItemContext:
 
     from . import settings
 
-    binary = settings.PYDANTIC_PKGR_GET_BINARY(key)
+    binary = settings.get_pkgr_binary(key)
 
     assert binary, f'Could not find a binary matching the specified name: {key}'
 

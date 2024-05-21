@@ -130,6 +130,10 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
+PYDANTIC_PKGR_GET_ALL_BINARIES = 'project.views.get_all_binaries'
+PYDANTIC_PKGR_GET_BINARY = 'project.views.get_binary'
+
+
 ADMIN_DATA_VIEWS = {
     "NAME": "Environment",
     "URLS": [

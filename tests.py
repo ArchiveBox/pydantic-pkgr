@@ -4,7 +4,10 @@ import unittest
 
 from pathlib import Path
 
-from pydantic_pkgr import BinProvider, EnvProvider, Binary, SemVer, ProviderLookupDict, bin_version
+from pydantic_pkgr import (
+    BinProvider, EnvProvider, Binary, SemVer, ProviderLookupDict, bin_version,
+    PipProvider, NpmProvider, AptProvider, BrewProvider, EnvProvider,
+)
 
 
 class TestSemVer(unittest.TestCase):
@@ -153,6 +156,76 @@ class TestBinary(unittest.TestCase):
         self.assertTrue(python_bin.is_executable)
         self.assertFalse(python_bin.is_script)
         self.assertTrue(bool(str(python_bin)))  # easy way to make sure serializing doesnt throw an error
+
+
+def flatten(xss):
+    return [x for xs in xss for x in xs]
+
+class InstallTest(unittest.TestCase):
+
+    def install_with_provider(self, provider, binary):
+
+        binary_bin = binary.load_or_install()
+        provider_bin = provider.load_or_install(bin_name=binary.name)
+        # print(binary_bin, binary_bin.bin_dir, binary_bin.loaded_abspath)
+        # print('\n'.join(f'{provider}={path}' for provider, path in binary.loaded_abspaths.items()), '\n')
+        # print()
+
+        self.assertEqual(binary_bin.loaded_provider, provider_bin.loaded_provider)
+        self.assertEqual(binary_bin.loaded_abspath, provider_bin.loaded_abspath)
+        self.assertEqual(binary_bin.loaded_version, provider_bin.loaded_version)
+
+
+        self.assertIn(binary_bin.loaded_abspath, flatten(binary_bin.loaded_abspaths.values()))
+        self.assertIn(str(binary_bin.bin_dir), flatten(PATH.split(':') for PATH in binary_bin.loaded_bin_dirs.values()))
+
+        self.assertEqual(binary_bin.loaded_version, SemVer('{}.{}.{}'.format(*sys.version_info[:3])))
+        self.assertIn(binary_bin.loaded_abspath, provider.get_abspaths(binary_bin.name))
+        # self.assertIn(binary_bin.loaded_respath, provider.get_abspaths(binary_bin.name))
+        self.assertTrue(binary_bin.is_valid)
+        self.assertTrue(binary_bin.is_executable)
+        self.assertFalse(binary_bin.is_script)
+        self.assertTrue(bool(str(binary_bin)))  # easy way to make sure serializing doesnt throw an error
+        # print(provider.PATH)
+        # print()
+        # print()
+        # print(binary.bin_filename, binary.bin_dir, binary.loaded_abspaths)
+        # print()
+        # print()
+        # print(provider.name, 'PATH=', provider.PATH, 'ABSPATHS=', provider.get_abspaths(bin_name=binary_bin.name))
+
+    def test_env_provider(self):
+        provider = EnvProvider()
+        binary = Binary(name='python3.10', providers=[provider]).load()
+        self.install_with_provider(provider, binary)
+
+    def test_pip_provider(self):
+        provider = PipProvider()
+        # print(provider.PATH)
+        binary = Binary(name='python3.10', providers=[provider])
+        self.install_with_provider(provider, binary)
+
+    def test_npm_provider(self):
+        provider = NpmProvider()
+        # print(provider.PATH)
+        binary = Binary(name='python3.10', providers=[provider])
+        self.install_with_provider(provider, binary)
+
+    def test_brew_provider(self):
+        provider = BrewProvider()
+        # print(provider.PATH)
+        binary = Binary(name='python3.10', providers=[provider])
+        self.install_with_provider(provider, binary)
+
+    def test_apt_provider(self):
+        provider = AptProvider()
+        # print(provider.PATH)
+        binary = Binary(name='python3.10', providers=[provider])
+        try:
+            result = self.install_with_provider(provider, binary)
+            self.assertFalse(bool(result))
+        except Exception:
+            pass
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ import importlib
 from pathlib import Path
 
 
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Iterable
 from typing_extensions import Self
 from subprocess import run, PIPE, CompletedProcess
 
@@ -19,6 +19,7 @@ from .semver import SemVer
 from .binprovider import (
     BinName,
     BinProviderName,
+    BinDirPath,
     HostBinPath,
     ShallowBinary,
     BinProvider,
@@ -29,6 +30,7 @@ from .binprovider import (
     ProviderLookupDict,
     bin_name,
     bin_abspath,
+    bin_abspaths,
     path_is_script,
     path_is_executable,
 )
@@ -91,47 +93,32 @@ class Binary(ShallowBinary):
             for provider_name, overrides in provider_overrides.items()
         }
 
-    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
+    @computed_field
     @property
-    def bin_filename(self) -> BinName:
-        if self.is_script:
-            # e.g. '.../Python.framework/Versions/3.11/lib/python3.11/sqlite3/__init__.py' -> sqlite
-            name = self.name
-        elif self.loaded_abspath:
-            # e.g. '/opt/homebrew/bin/wget' -> wget
-            name = bin_name(self.loaded_abspath)
-        else:
-            # e.g. 'ytdlp' -> 'yt-dlp'
-            name = bin_name(self.name)
-        return name
+    def loaded_abspaths(self) -> Dict[BinProviderName, List[HostBinPath]]:
+        assert self.loaded_abspath, 'Binary must be loaded before getting abspath list'
+        all_bin_abspaths = {self.loaded_provider: [self.loaded_abspath]} if self.loaded_provider  else {}
+        for provider in self.providers_supported:
+            if not provider.PATH:
+                # print('skipping provider', provider.name, provider.PATH)
+                continue
+            for bin_abspath in bin_abspaths(self.name, PATH=provider.PATH):
+                existing = all_bin_abspaths.get(provider.name, [])
+                if bin_abspath not in existing:
+                    all_bin_abspaths[provider.name] = [
+                        *existing,
+                        bin_abspath,
+                    ]
+        return all_bin_abspaths
+    
 
-    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
+    @computed_field
     @property
-    def is_executable(self) -> bool:
-        try:
-            assert self.loaded_abspath and path_is_executable(self.loaded_abspath)
-            return True
-        except (ValidationError, AssertionError):
-            return False
-
-    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
-    @property
-    def is_script(self) -> bool:
-        try:
-            assert self.loaded_abspath and path_is_script(self.loaded_abspath)
-            return True
-        except (ValidationError, AssertionError):
-            return False
-
-    @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
-    @property
-    def is_valid(self) -> bool:
-        return bool(
-            self.name
-            and self.loaded_abspath
-            and self.loaded_version
-            and (self.is_executable or self.is_script)
-        )
+    def loaded_bin_dirs(self) -> Dict[BinProviderName, BinDirPath]:
+        return {
+            provider_name: ':'.join([str(bin_abspath.parent) for bin_abspath in bin_abspaths])
+            for provider_name, bin_abspaths in self.loaded_abspaths.items()
+        }
 
     @validate_call
     def install(self) -> Self:
@@ -198,14 +185,6 @@ class Binary(ShallowBinary):
                 # print(err)
                 inner_exc = err
         raise outer_exc from inner_exc
-
-    @validate_call
-    def exec(self, args=(), pwd='.') -> CompletedProcess:
-        assert self.loaded_abspath
-        assert self.loaded_version
-        return run([self.loaded_abspath, *args], stdout=PIPE, stderr=PIPE, pwd=pwd)
-
-
 
 
 class SystemPythonHelpers:

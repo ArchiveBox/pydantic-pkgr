@@ -2,6 +2,8 @@ from .semver import (
     SemVer,
 )
 from .binprovider import (
+    PATHStr,
+    BinDirPath,
     BinName,
     BinProviderName,
     ProviderLookupDict,
@@ -10,6 +12,7 @@ from .binprovider import (
     AptProvider,
     BrewProvider,
     PipProvider,
+    NpmProvider,
     InstallStr,
     ShallowBinary,
     bin_version,

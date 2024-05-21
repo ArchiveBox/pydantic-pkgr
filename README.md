@@ -313,6 +313,10 @@ INSTALLED_APPS = [
     # ...
 ]
 
+# point these to a function that gets the list of all binaries / a single binary
+PYDANTIC_PKGR_GET_ALL_BINARIES = 'pydantic_pkgr.views.get_all_binaries'
+PYDANTIC_PKGR_GET_BINARY = 'pydantic_pkgr.views.get_binary'
+
 ADMIN_DATA_VIEWS = {
     "NAME": "Environment",
     "URLS": [
@@ -351,9 +355,15 @@ register_admin_views(custom_admin)
 
 <br/>
 
-### Django Admin Usage: JSONFormWidget for editing `BinProvider` and `Binary` data
+### ~~Django Admin Usage: JSONFormWidget for editing `BinProvider` and `Binary` data~~
 
-Install `django-jsonform` to get auto-generated Forms for editing BinProvider, Binary, etc. data
+> [!IMPORTANT]
+> This feature is coming soon but is blocked on a few issues being fixed first:  
+> - https://github.com/surenkov/django-pydantic-field/issues/64
+> - https://github.com/surenkov/django-pydantic-field/issues/65
+> - https://github.com/surenkov/django-pydantic-field/issues/66
+
+~~Install `django-jsonform` to get auto-generated Forms for editing BinProvider, Binary, etc. data~~
 ```bash
 pip install django-pydantic-field django-jsonform
 ```

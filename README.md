@@ -77,19 +77,16 @@ curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x
 from pyinfra.operations import apt
 from pydantic_pkgr import Binary, EnvProvider, PipProvider
 
-# You can also directly with the package manager (aka BinProvider) APIs
+# We also provide direct package manager (aka BinProvider) APIs
 apt = AptProvider()
 print(apt.PATH, apt.get_abspaths('wget'), apt.install('wget'))
 
-# It even plays nicely with packages installed by other tools (e.g. pyinfra/ansible)
-apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
-
 # our Binary API provides a nice type-checkable, validated, serializable handle
+# even if packages are installed by tools we don't control (e.g. pyinfra/ansible/puppet/etc.)
+apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
 ffmpeg = Binary(name='ffmpeg').load()
-print(ffmpeg.loaded_abspaths)      # show all the ffmpeg binaries found in $PATH
-ffmpeg.exec(cmd=['-i', 'input.mp4', 'output.avi'])
-
 print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True ...
+print(ffmpeg.loaded_abspaths)       # show all the ffmpeg binaries found in $PATH (in case theres more than one available)
 print(ffmpeg.model_dump_json())     # ... everything can also be dumped/loaded as json
 print(ffmpeg.model_json_schema())   # ... all types provide OpenAPI-ready JSON schemas
 ```

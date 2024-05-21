@@ -67,10 +67,8 @@ class CurlBinary(Binary):
     name: str = 'curl'
     providers: list[BinProvider] = [BrewProvider(), EnvProvider()]
 
-curl = CurlBinary()
-
 # it works the same either way
-curl = curl.install()
+curl = CurlBinary().install()
 print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew' True
 curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```

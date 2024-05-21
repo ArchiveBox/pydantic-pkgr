@@ -299,7 +299,7 @@ assert obj.binaries[0].provider == DEFAULT_PROVIDER
 
 ### Django Admin Usage: Show read-only list of Binaries in Admin UI
 
-<img height="200" alt="Django Admin binaries list view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/a9980217-f39e-434e-b266-20cd6feb17c3" align="top"><img height="200" alt="Django Admin binaries detail view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/d4d9086e-c8f4-4b6e-8ee8-8c8a864715b0" align="top">
+<img height="220" alt="Django Admin binaries list view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/a9980217-f39e-434e-b266-20cd6feb17c3" align="top"><img height="220" alt="Django Admin binaries detail view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/d4d9086e-c8f4-4b6e-8ee8-8c8a864715b0" align="top">
 
 ```bash
 pip install pydantic-pkgr django-admin-data-views

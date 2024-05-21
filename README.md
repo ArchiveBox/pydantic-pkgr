@@ -11,7 +11,7 @@
 <br/>
 
 **This is a [Python library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages locally with a variety of package managers.**  
-It's designed to help Python apps check for and install local binaries at runtime.  
+It's designed for when `pip` dependencies aren't enough, and your app has to install local binaries at runtime.  
 
 
 ```shell
@@ -29,7 +29,7 @@ pip install pydantic-pkgr
 <br/>
 
 > [!WARNING]
-> This is [ALPHA] software under active development, not ready for production use yet.
+> This is [ALPHA] software under active development for use in [ArchiveBox](https://github.com/ArchiveBox/ArchiveBox), it's not ready for general public / production use yet.
 
 
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)

@@ -155,6 +155,7 @@ It can define one or more `BinProvider`s that it supports, along with overrides 
 - `load()`, `install()`, `load_or_install()` `->` `Binary`
 - `provider: BinProviderName` (`BinProviderName == str`)
 - `abspath: Path`
+- `abspaths: List[Path]`
 - `version: SemVer`
 
 ```python
@@ -177,6 +178,7 @@ class YtdlpBinary(Binary):
 ytdlp = YtdlpBinary().load_or_install()
 print(ytdlp.provider)                     # 'brew'
 print(ytdlp.abspath)                      # Path('/opt/homebrew/bin/yt-dlp')
+print(ytdlp.abspaths)                     # [Path('/opt/homebrew/bin/yt-dlp'), Path('/usr/local/bin/yt-dlp')]
 print(ytdlp.version)                      # SemVer('2024.4.9')
 print(ytdlp.is_valid)                     # True
 ```
@@ -208,6 +210,7 @@ class DockerBinary(Binary):
 docker = DockerBinary().load_or_install()
 print(docker.provider)                    # 'env'
 print(docker.abspath)                     # Path('/usr/local/bin/podman')
+print(docker.abspaths)                    # [Path('/usr/local/bin/podman'), Path('/opt/homebrew/bin/podman')]
 print(docker.version)                     # SemVer('6.0.2')
 print(docker.is_valid)                    # True
 

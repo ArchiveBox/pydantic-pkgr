@@ -20,6 +20,7 @@ from .binprovider import (
     BinName,
     BinProviderName,
     HostBinPath,
+    ShallowBinary,
     BinProvider,
     EnvProvider,
     AptProvider,
@@ -32,14 +33,16 @@ from .binprovider import (
     path_is_executable,
 )
 
+DEFAULT_PROVIDER = EnvProvider()
 
-class Binary(BaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True)
 
-    name: BinName
-    description: str = Field(default='')
+class Binary(ShallowBinary):
+    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
 
-    providers_supported: List[BinProvider] = Field(default=[EnvProvider()], alias='providers')
+    name: BinName = ''
+    description: str = ''
+
+    providers_supported: List[BinProvider] = Field(default=[DEFAULT_PROVIDER], alias='providers')
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = Field(default={}, alias='overrides')
     
     loaded_provider: Optional[BinProviderName] = Field(default=None, alias='provider')
@@ -54,6 +57,7 @@ class Binary(BaseModel):
 
     @model_validator(mode='after')
     def validate(self):
+        # assert self.name, 'Binary.name must not be empty'
         self.loaded_abspath = bin_abspath(self.name) or self.name
         self.description = self.description or self.name
         
@@ -131,72 +135,69 @@ class Binary(BaseModel):
 
     @validate_call
     def install(self) -> Self:
+        assert self.name, f'No binary name was provided! {self}'
+
         if not self.providers_supported:
             return self
 
-        exc = Exception('No providers were able to install binary', self.name, self.providers_supported)
+        outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in self.providers_supported)}] were able to install binary: {self.name}')
+        inner_exc = Exception('No providers were available')
         for provider in self.providers_supported:
             try:
                 installed_bin = provider.install(self.name, overrides=self.provider_overrides.get(provider.name))
                 if installed_bin:
                     # print('INSTALLED', self.name, installed_bin)
-                    return self.model_copy(update={
-                        'loaded_provider': provider.name,
-                        'loaded_abspath': installed_bin.abspath,
-                        'loaded_version': installed_bin.version,
-                    })
+                    return self.model_copy(update=installed_bin.dict())
             except Exception as err:
-                print(err)
-                exc = err
-        raise exc
+                # print(err)
+                inner_exc = err
+        raise outer_exc from inner_exc
 
     @validate_call
     def load(self, cache=True) -> Self:
+        assert self.name, f'No binary name was provided! {self}'
+
         if self.is_valid:
             return self
 
         if not self.providers_supported:
             return self
 
-        exc = Exception('No providers were able to install binary', self.name, self.providers_supported)
+        outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in self.providers_supported)}] were able to load binary: {self.name}')
+        inner_exc = Exception('No providers were available')
         for provider in self.providers_supported:
             try:
                 installed_bin = provider.load(self.name, cache=cache, overrides=self.provider_overrides.get(provider.name))
                 if installed_bin:
                     # print('LOADED', provider, self.name, installed_bin)
-                    return self.model_copy(update={
-                        'loaded_provider': provider.name,
-                        'loaded_abspath': installed_bin.abspath,
-                        'loaded_version': installed_bin.version,
-                    })
+                    return self.model_copy(update=installed_bin.dict())
             except Exception as err:
-                print(err)
-                exc = err
-        raise exc
+                # print(err)
+                inner_exc = err
+        raise outer_exc from inner_exc
 
     @validate_call
     def load_or_install(self, cache=True) -> Self:
+        assert self.name, f'No binary name was provided! {self}'
+
         if self.is_valid:
             return self
 
         if not self.providers_supported:
             return self
 
-        exc = Exception('No providers were able to install binary', self.name, self.providers_supported)
+        outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in self.providers_supported)}] were able to find or install binary: {self.name}')
+        inner_exc = Exception('No providers were available')
         for provider in self.providers_supported:
             try:
                 installed_bin = provider.load_or_install(self.name, overrides=self.provider_overrides.get(provider.name), cache=cache)
                 if installed_bin:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
-                    return self.model_copy(update={
-                        'loaded_provider': provider.name,
-                        'loaded_abspath': installed_bin.abspath,
-                        'loaded_version': installed_bin.version,
-                    })
+                    return self.model_copy(update=installed_bin.dict())
             except Exception as err:
-                print(err)
-                exc = err
-        raise exc
+                # print(err)
+                inner_exc = err
+        raise outer_exc from inner_exc
 
     @validate_call
     def exec(self, args=(), pwd='.') -> CompletedProcess:
@@ -323,3 +324,7 @@ class WgetBinary(Binary):
 #     print(DJANGO_BINARY)
 #     print(WGET_BINARY)
 #     print(YTDLP_BINARY)
+
+# import json
+# print(json.dumps(EnvProvider().model_dump_json(), indent=4))            # ... everything can also be dumped/loaded as json
+# print(json.dumps(WgetBinary().model_json_schema(), indent=4))          # ... all types provide OpenAPI-ready JSON schemas

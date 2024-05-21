@@ -11,7 +11,7 @@ from .binprovider import (
     BrewProvider,
     PipProvider,
     InstallStr,
-    InstalledBin,
+    ShallowBinary,
 )
 
 from .binary import (

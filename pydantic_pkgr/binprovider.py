@@ -5,7 +5,6 @@ import operator
 
 from typing import Callable, Any, Optional, Type, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
 from typing_extensions import Self
-from abc import ABC, abstractmethod
 from collections import namedtuple
 from pathlib import Path
 from subprocess import run, PIPE, CompletedProcess
@@ -14,7 +13,16 @@ from pydantic_core import core_schema, ValidationError
 from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field
 
 
-BinProviderName = Literal['env', 'pip', 'apt', 'brew', 'npm', 'vendor']
+def validate_bin_provider_name(name: str) -> str:
+    assert 1 < len(name) < 16, 'BinProvider names must be between 1 and 16 characters long'
+    assert name.replace('_', '').isalnum(), 'BinProvider names can only contain a-Z0-9 and underscores'
+    assert name[0].isalpha(), 'BinProvider names must start with a letter'
+    return name
+
+BinProviderName = Annotated[str, AfterValidator(validate_bin_provider_name)]
+# in practice this is essentially BinProviderName: Literal['env', 'pip', 'apt', 'brew', 'npm', 'vendor']
+# but because users can create their own BinProviders we cant restrict it to a preset list of literal names
+
 
 from .semver import SemVer
 
@@ -31,9 +39,10 @@ def func_takes_args_or_kwargs(lambda_func: Callable[..., Any]) -> bool:
 @validate_call
 def bin_name(bin_path_or_name: str | Path) -> str:
     name = Path(bin_path_or_name).name
-    assert len(name) > 1
+    assert 1 <= len(name) < 64, 'Binary names must be between 1 and 63 characters long'
     assert name.replace('-', '').replace('_', '').replace('.', '').isalnum(), (
         f'Binary name can only contain a-Z0-9-_.: {name}')
+    assert name[0].isalpha(), 'Binary names must start with a letter'
     return name
 
 BinName = Annotated[str, AfterValidator(bin_name)]
@@ -75,7 +84,7 @@ def bin_abspath(bin_path_or_name: BinName | Path) -> HostBinPath | None:
         # already a path, get its absolute form
         abspath = Path(bin_path_or_name).resolve()
     else:
-        # not a path yet, get path using os.which
+        # not a path yet, get path using shutil.which
         binpath = shutil.which(bin_path_or_name)
         if not binpath:
             return None
@@ -89,7 +98,7 @@ def bin_abspath(bin_path_or_name: BinName | Path) -> HostBinPath | None:
 
 @validate_call
 def bin_version(bin_path: HostBinPath, args=('--version',)) -> SemVer | None:
-    return SemVer(run([bin_path, *args], stdout=PIPE).stdout.strip().decode())
+    return SemVer(run([str(bin_path), *args], stdout=PIPE, text=True).stdout.strip())
 
 
 class ShallowBinary(BaseModel):
@@ -97,14 +106,15 @@ class ShallowBinary(BaseModel):
     Shallow version of Binary used as a return type for BinProvider methods (e.g. load_or_install()).
     (doesn't implement full Binary interface, but can be used to populate a full loaded Binary instance)
     """
-    name: BinName
+    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
 
-    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+
+    name: BinName = ''
 
     loaded_provider: BinProviderName = Field(default='env', alias='provider')
     loaded_abspath: HostBinPath = Field(alias='abspath')
     loaded_version: SemVer = Field(alias='version')
-    
+
     @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
     @property
     def is_executable(self) -> bool:
@@ -168,10 +178,10 @@ ProviderType = Literal['abspath', 'version', 'subdeps', 'install']
 
 
 
-class BinProvider(ABC, BaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True)
+class BinProvider(BaseModel):
+    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
     
-    name: BinProviderName
+    name: BinProviderName = ''
     
     abspath_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
     version_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
@@ -291,30 +301,30 @@ class BinProvider(ABC, BaseModel):
 
 
 
-    def on_get_abspath(self, bin_name: BinName, **_) -> HostBinPath | None:
-        print(f'[*] {self.__class__.__name__}: Getting abspath for {bin_name}...')
+    def on_get_abspath(self, bin_name: BinName, **context) -> HostBinPath | None:
+        # print(f'[*] {self.__class__.__name__}: Getting abspath for {bin_name}...')
         try:
             return bin_abspath(bin_name)
         except ValidationError:
             return None
 
-    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **_) -> SemVer | None:
+    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         abspath = abspath or self._abspath_cache.get(bin_name) or self.get_abspath(bin_name)
         if not abspath: return None
 
-        print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
+        # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
             return bin_version(abspath)
         except ValidationError:
             return None
 
-    def on_get_subdeps(self, bin_name: BinName, **_) -> InstallStr:
-        print(f'[*] {self.__class__.__name__}: Getting subdependencies for {bin_name}')
+    def on_get_subdeps(self, bin_name: BinName, **context) -> InstallStr:
+        # print(f'[*] {self.__class__.__name__}: Getting subdependencies for {bin_name}')
         # ... subdependency calculation logic here
         return TypeAdapter(InstallStr).validate_python(bin_name)
 
-    @abstractmethod
-    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **_):
+
+    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.get_subdeps(bin_name)
         print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
         # ... install logic here
@@ -383,9 +393,9 @@ class BinProvider(ABC, BaseModel):
         
         result = ShallowBinary(
             name=bin_name,
-            provider=self.name,
-            abspath=installed_abspath,
-            version=installed_version,
+            loaded_provider=self.name,
+            loaded_abspath=installed_abspath,
+            loaded_version=installed_version,
         )
         self._install_cache[bin_name] = result
         return result
@@ -413,9 +423,9 @@ class BinProvider(ABC, BaseModel):
 
         return ShallowBinary(
             name=bin_name,
-            provider=self.name,
-            abspath=installed_abspath,
-            version=installed_version,
+            loaded_provider=self.name,
+            loaded_abspath=installed_abspath,
+            loaded_version=installed_version,
         )
 
     @validate_call
@@ -429,7 +439,7 @@ class BinProvider(ABC, BaseModel):
 class PipProvider(BinProvider):
     name: BinProviderName = 'pip'
 
-    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **_):
+    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
         print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
         
@@ -445,10 +455,11 @@ class AptProvider(BinProvider):
     name: BinProviderName = 'apt'
     
     subdeps_provider: ProviderLookupDict = {
+        **BinProvider.__fields__['subdeps_provider'].default,
         'yt-dlp': lambda: 'yt-dlp ffmpeg',
     }
 
-    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **_):
+    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
         print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
         
@@ -481,7 +492,7 @@ class AptProvider(BinProvider):
 class BrewProvider(BinProvider):
     name: BinProviderName = 'brew'
 
-    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **_):
+    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
         print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
         
@@ -497,12 +508,14 @@ class EnvProvider(BinProvider):
     name: BinProviderName = 'env'
 
     abspath_provider: ProviderLookupDict = {
+        **BinProvider.__fields__['abspath_provider'].default,
         'python': lambda: Path(sys.executable),
     }
     version_provider: ProviderLookupDict = {
+        **BinProvider.__fields__['version_provider'].default,
         'python': lambda: '{}.{}.{}'.format(*sys.version_info[:3]),
     }
 
-    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **_):
+    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
         """The env provider is ready-only and does not install any packages, so this is a no-op"""
         pass

@@ -46,7 +46,7 @@ apt, brew, pip, npm, env = AptProvider(), BrewProvider(), PipProvider(), NpmProv
 dependencies = [
     Binary(name='curl',       providers=[env, apt, brew]),
     Binary(name='wget',       providers=[env, apt, brew]),
-    Binary(name='yt-dlp',     providers=[env, apt, brew, pip]),
+    Binary(name='yt-dlp',     providers=[env, pip, apt, brew]),
     Binary(name='playwright', providers=[env, pip, npm]),
     Binary(name='puppeteer',  providers=[env, npm]),
 ]
@@ -56,7 +56,7 @@ for binary in dependencies:
     print(binary.abspath, binary.version, binary.provider, binary.is_valid)
     # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True ...
 
-proc = Binary(name='curl').load().exec(['-fsSL', 'https://example.com'])    # <!doctype html>...
+    print(binary.exec(cmd=['--version']))   # curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
 ```
 
 ```python
@@ -69,12 +69,13 @@ curl = Binary(name='curl', providers=[BrewProvider(), EnvProvider()])
 class CurlBinary(Binary):
     name: str = 'curl'
     providers list[BinProvider] = [BrewProvider(), EnvProvider()]
+
 curl = CurlBinary()
 
 # it works the same either way
 curl = curl.install()
 print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew' True
-curl.exec(['--version'])                                         # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
+curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```
 
 ```python

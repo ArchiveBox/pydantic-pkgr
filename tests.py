@@ -231,6 +231,10 @@ class InstallTest(unittest.TestCase):
 
     def test_brew_provider(self):
         # print(provider.PATH)
+        os.environ['HOMEBREW_NO_AUTO_UPDATE'] = 'True'
+        os.environ['HOMEBREW_NO_INSTALL_CLEANUP'] = 'True'
+        os.environ['HOMEBREW_NO_ENV_HINTS'] = 'True'
+
         exception = None
         result = None
         try:

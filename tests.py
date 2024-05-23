@@ -1,3 +1,4 @@
+import os
 import sys
 import shutil
 import unittest
@@ -13,7 +14,6 @@ from pydantic_pkgr import (
     PipProvider, NpmProvider, AptProvider, BrewProvider, EnvProvider,
 )
 
-SYS_PYTHON_BIN = 'python{}.{}'.format(*sys.version_info[:2])
 
 class TestSemVer(unittest.TestCase):
 
@@ -179,6 +179,7 @@ class InstallTest(unittest.TestCase):
 
     def install_with_provider(self, provider, binary):
 
+
         binary_bin = binary.load_or_install()
         provider_bin = provider.load_or_install(bin_name=binary.name)
         # print(binary_bin, binary_bin.bin_dir, binary_bin.loaded_abspath)
@@ -189,13 +190,15 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(binary_bin.loaded_abspath, provider_bin.loaded_abspath)
         self.assertEqual(binary_bin.loaded_version, provider_bin.loaded_version)
 
-
         self.assertIn(binary_bin.loaded_abspath, flatten(binary_bin.loaded_abspaths.values()))
         self.assertIn(str(binary_bin.bin_dir), flatten(PATH.split(':') for PATH in binary_bin.loaded_bin_dirs.values()))
 
-        self.assertEqual(binary_bin.loaded_version, SemVer('{}.{}.{}'.format(*sys.version_info[:3])))
+        VERSION = SemVer.parse(subprocess.check_output(f'{binary.name} --version', shell=True, text=True))
+        ABSPATH = Path(shutil.which(binary.name)).absolute().resolve()
+
+        self.assertEqual(binary_bin.loaded_version, VERSION)
         self.assertIn(binary_bin.loaded_abspath, provider.get_abspaths(binary_bin.name))
-        # self.assertIn(binary_bin.loaded_respath, provider.get_abspaths(binary_bin.name))
+        self.assertEqual(binary_bin.loaded_respath, ABSPATH)
         self.assertTrue(binary_bin.is_valid)
         self.assertTrue(binary_bin.is_executable)
         self.assertFalse(binary_bin.is_script)
@@ -207,39 +210,81 @@ class InstallTest(unittest.TestCase):
         # print()
         # print()
         # print(provider.name, 'PATH=', provider.PATH, 'ABSPATHS=', provider.get_abspaths(bin_name=binary_bin.name))
+        return provider_bin
 
     def test_env_provider(self):
         provider = EnvProvider()
-        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider]).load()
+        binary = Binary(name='wget', providers=[provider]).load()
         self.install_with_provider(provider, binary)
 
     def test_pip_provider(self):
         provider = PipProvider()
         # print(provider.PATH)
-        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
+        binary = Binary(name='wget', providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_npm_provider(self):
         provider = NpmProvider()
         # print(provider.PATH)
-        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
+        binary = Binary(name='wget', providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_brew_provider(self):
-        provider = BrewProvider()
         # print(provider.PATH)
-        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
-        self.install_with_provider(provider, binary)
+        exception = None
+        result = None
+        try:
+            provider = BrewProvider()
+            binary = Binary(name='wget', providers=[provider])
+            result = self.install_with_provider(provider, binary)
+        except Exception as err:
+            exception = err
+
+        is_on_windows = sys.platform.startswith('win') or os.name == 'nt'
+        is_on_macos = 'darwin' in sys.platform
+        is_on_linux = 'linux' in sys.platform
+        has_brew = shutil.which('brew') is not None
+        # has_apt = shutil.which('dpkg') is not None
+
+        if is_on_macos or (is_on_linux and has_brew):
+            self.assertTrue(has_brew)
+            self.assertIsNone(exception)
+            self.assertTrue(result)
+        elif is_on_windows or (is_on_linux and not has_brew):
+            self.assertFalse(has_brew)
+            self.assertIsInstance(exception, Exception)
+            self.assertFalse(result)
+        else:
+            raise exception
+
 
     def test_apt_provider(self):
-        provider = AptProvider()
-        # print(provider.PATH)
-        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
+        exception = None
+        result = None
         try:
+            provider = AptProvider()
+            # print(provider.PATH)
+            binary = Binary(name='wget', providers=[provider])
             result = self.install_with_provider(provider, binary)
-            self.assertFalse(bool(result))
-        except Exception:
-            pass
+        except Exception as err:
+            exception = err
+
+        is_on_windows = sys.platform.startswith('win') or os.name == 'nt'
+        is_on_macos = 'darwin' in sys.platform
+        is_on_linux = 'linux' in sys.platform
+        # has_brew = shutil.which('brew') is not None
+        has_apt = shutil.which('apt-get') is not None
+
+        if is_on_linux:
+            self.assertTrue(has_apt)
+            self.assertIsNone(exception)
+            self.assertTrue(result)
+        elif is_on_windows or is_on_macos:
+            self.assertFalse(has_apt)
+            self.assertIsInstance(exception, Exception)
+            self.assertFalse(result)
+        else:
+            raise exception
 
 
 if __name__ == '__main__':

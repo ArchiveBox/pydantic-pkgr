@@ -666,7 +666,7 @@ class AptProvider(BinProvider):
 
     def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
-        if not (shutil.which(self.BIN) and shutil.which('dpkg')):
+        if not (shutil.which(self.BIN) and shutil.which('dpkg') and shutil.which('apt-get')):
             raise Exception(f'{self.__class__.__name__}.BIN is not avaialable on this host: {self.BIN}')
 
         print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')

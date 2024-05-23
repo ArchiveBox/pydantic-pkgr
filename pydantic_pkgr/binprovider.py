@@ -327,7 +327,7 @@ class BinProvider(BaseModel):
 
         if python_bin_dir not in PATH:
             PATH = ':'.join([python_bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_pythong(PATH)
+        return TypeAdapter(PATHStr).validate_python(PATH)
 
     def get_default_providers(self):
         return self.get_providers_for_bin('*')
@@ -587,7 +587,7 @@ class PipProvider(BinProvider):
         for bin_dir in paths:
             if bin_dir not in PATH:
                 PATH = ':'.join([bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_pythong(PATH)
+        return TypeAdapter(PATHStr).validate_python(PATH)
 
     def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
@@ -628,7 +628,7 @@ class NpmProvider(BinProvider):
         for bin_dir in npm_bin_dirs:
             if bin_dir not in PATH:
                 PATH = ':'.join([bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_pythong(PATH)
+        return TypeAdapter(PATHStr).validate_python(PATH)
 
     def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)
@@ -646,7 +646,7 @@ class NpmProvider(BinProvider):
 
 class AptProvider(BinProvider):
     name: BinProviderName = 'apt'
-    BIN: BinName = 'apt'
+    BIN: BinName = 'apt-get'
     
     subdeps_provider: ProviderLookupDict = {
         **BinProvider.__fields__['subdeps_provider'].default,
@@ -661,7 +661,7 @@ class AptProvider(BinProvider):
         for bin_dir in dpkg_bin_dirs:
             if bin_dir not in PATH:
                 PATH = ':'.join([bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_pythong(PATH)
+        return TypeAdapter(PATHStr).validate_python(PATH)
 
 
     def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
@@ -706,7 +706,7 @@ class BrewProvider(BinProvider):
         brew_bin_dir = self.exec(bin_name=self.BIN, cmd=['--prefix']).stdout.strip() + '/bin'
         if brew_bin_dir not in PATH:
             PATH = ':'.join([brew_bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_pythong(PATH)
+        return TypeAdapter(PATHStr).validate_python(PATH)
 
     def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
         subdeps = subdeps or self.on_get_subdeps(bin_name)

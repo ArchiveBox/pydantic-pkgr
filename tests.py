@@ -202,31 +202,31 @@ class InstallTest(unittest.TestCase):
 
     def test_env_provider(self):
         provider = EnvProvider()
-        binary = Binary(name='python3.10', providers=[provider]).load()
+        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider]).load()
         self.install_with_provider(provider, binary)
 
     def test_pip_provider(self):
         provider = PipProvider()
         # print(provider.PATH)
-        binary = Binary(name='python3.10', providers=[provider])
+        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_npm_provider(self):
         provider = NpmProvider()
         # print(provider.PATH)
-        binary = Binary(name='python3.10', providers=[provider])
+        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_brew_provider(self):
         provider = BrewProvider()
         # print(provider.PATH)
-        binary = Binary(name='python3.10', providers=[provider])
+        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_apt_provider(self):
         provider = AptProvider()
         # print(provider.PATH)
-        binary = Binary(name='python3.10', providers=[provider])
+        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
         try:
             result = self.install_with_provider(provider, binary)
             self.assertFalse(bool(result))

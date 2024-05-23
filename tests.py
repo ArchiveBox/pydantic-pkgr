@@ -235,20 +235,26 @@ class InstallTest(unittest.TestCase):
         os.environ['HOMEBREW_NO_INSTALL_CLEANUP'] = 'True'
         os.environ['HOMEBREW_NO_ENV_HINTS'] = 'True'
 
-        exception = None
-        result = None
-        try:
-            provider = BrewProvider()
-            binary = Binary(name='wget', providers=[provider])
-            result = self.install_with_provider(provider, binary)
-        except Exception as err:
-            exception = err
-
         is_on_windows = sys.platform.startswith('win') or os.name == 'nt'
         is_on_macos = 'darwin' in sys.platform
         is_on_linux = 'linux' in sys.platform
         has_brew = shutil.which('brew') is not None
         # has_apt = shutil.which('dpkg') is not None
+        
+        provider = BrewProvider()
+        if has_brew:
+            self.assertTrue(provider.PATH)
+        else:
+            self.assertFalse(provider.PATH)
+
+        exception = None
+        result = None
+        try:
+            binary = Binary(name='wget', providers=[provider])
+            result = self.install_with_provider(provider, binary)
+        except Exception as err:
+            exception = err
+
 
         if is_on_macos or (is_on_linux and has_brew):
             self.assertTrue(has_brew)
@@ -265,21 +271,27 @@ class InstallTest(unittest.TestCase):
 
 
     def test_apt_provider(self):
+        is_on_windows = sys.platform.startswith('win') or os.name == 'nt'
+        is_on_macos = 'darwin' in sys.platform
+        is_on_linux = 'linux' in sys.platform
+        # has_brew = shutil.which('brew') is not None
+        has_apt = shutil.which('apt-get') is not None
+
+
         exception = None
         result = None
+        provider = AptProvider()
+        if has_apt:
+            self.assertTrue(provider.PATH)
+        else:
+            self.assertFalse(provider.PATH)
         try:
-            provider = AptProvider()
             # print(provider.PATH)
             binary = Binary(name='wget', providers=[provider])
             result = self.install_with_provider(provider, binary)
         except Exception as err:
             exception = err
 
-        is_on_windows = sys.platform.startswith('win') or os.name == 'nt'
-        is_on_macos = 'darwin' in sys.platform
-        is_on_linux = 'linux' in sys.platform
-        # has_brew = shutil.which('brew') is not None
-        has_apt = shutil.which('apt-get') is not None
 
         if is_on_linux:
             self.assertTrue(has_apt)

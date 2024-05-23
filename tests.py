@@ -65,7 +65,8 @@ class TestBinProvider(unittest.TestCase):
         SYS_BASH_VERSION = subprocess.check_output('bash --version', shell=True, text=True).split('\n')[0]
 
         bash_bin = provider.load_or_install('bash')
-        self.assertGreater(bash_bin.loaded_version, SemVer(SYS_BASH_VERSION))
+        self.assertEqual(bash_bin.loaded_version, SemVer(SYS_BASH_VERSION))
+        self.assertGreater(bash_bin.loaded_version, SemVer('3.0.0'))
         self.assertEqual(bash_bin.loaded_abspath, Path(shutil.which('bash')))
         self.assertTrue(bash_bin.is_valid)
         self.assertTrue(bash_bin.is_executable)

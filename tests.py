@@ -1,6 +1,10 @@
 import sys
 import shutil
 import unittest
+import subprocess
+
+
+
 
 from pathlib import Path
 
@@ -9,6 +13,7 @@ from pydantic_pkgr import (
     PipProvider, NpmProvider, AptProvider, BrewProvider, EnvProvider,
 )
 
+SYS_PYTHON_BIN = 'python{}.{}'.format(*sys.version_info[:2])
 
 class TestSemVer(unittest.TestCase):
 
@@ -57,8 +62,10 @@ class TestBinProvider(unittest.TestCase):
     def test_bash_env(self):
         provider = EnvProvider()
 
+        SYS_BASH_VERSION = subprocess.check_output('bash --version', shell=True, text=True).split('\n')[0]
+
         bash_bin = provider.load_or_install('bash')
-        self.assertGreater(bash_bin.loaded_version, SemVer('4.2'))
+        self.assertGreater(bash_bin.loaded_version, SemVer(SYS_BASH_VERSION))
         self.assertEqual(bash_bin.loaded_abspath, Path(shutil.which('bash')))
         self.assertTrue(bash_bin.is_valid)
         self.assertTrue(bash_bin.is_executable)
@@ -202,31 +209,31 @@ class InstallTest(unittest.TestCase):
 
     def test_env_provider(self):
         provider = EnvProvider()
-        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider]).load()
+        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider]).load()
         self.install_with_provider(provider, binary)
 
     def test_pip_provider(self):
         provider = PipProvider()
         # print(provider.PATH)
-        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
+        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_npm_provider(self):
         provider = NpmProvider()
         # print(provider.PATH)
-        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
+        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_brew_provider(self):
         provider = BrewProvider()
         # print(provider.PATH)
-        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
+        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
         self.install_with_provider(provider, binary)
 
     def test_apt_provider(self):
         provider = AptProvider()
         # print(provider.PATH)
-        binary = Binary(name='python{}.{}'.format(*sys.version_info[:2]), providers=[provider])
+        binary = Binary(name=SYS_PYTHON_BIN, providers=[provider])
         try:
             result = self.install_with_provider(provider, binary)
             self.assertFalse(bool(result))

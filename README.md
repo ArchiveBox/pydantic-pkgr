@@ -54,9 +54,9 @@ for binary in dependencies:
     binary = binary.load_or_install()
 
     print(binary.abspath, binary.version, binary.provider, binary.is_valid)
-    # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True ...
+    # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True
 
-    print(binary.exec(cmd=['--version']))   # curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
+    binary.exec(cmd=['--version'])   # curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
 ```
 
 ```python
@@ -74,16 +74,18 @@ curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x
 ```
 
 ```python
-from pyinfra.operations import apt
 from pydantic_pkgr import Binary, EnvProvider, PipProvider
 
 # We also provide direct package manager (aka BinProvider) APIs
 apt = AptProvider()
-print(apt.PATH, apt.get_abspaths('wget'), apt.install('wget'))
+apt.install('wget')
+print(apt.PATH, apt.get_abspaths('wget'), apt.get_version('wget'))
 
 # our Binary API provides a nice type-checkable, validated, serializable handle
 # even if packages are installed by tools we don't control (e.g. pyinfra/ansible/puppet/etc.)
+from pyinfra.operations import apt
 apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
+
 ffmpeg = Binary(name='ffmpeg').load()
 print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True ...
 print(ffmpeg.loaded_abspaths)       # show all the ffmpeg binaries found in $PATH (in case theres more than one available)
@@ -142,7 +144,7 @@ bash.exec(['-c', 'echo hi'])          # hi
 ### Example: Installing curl using the apt package manager
 apt = AptProvider()
 curl = apt.install(bin_name='curl')
-print(curl.version)                   # Path('/usr/bin/curl')
+print(curl.abspath)                   # Path('/usr/bin/curl')
 print(curl.version)                   # SemVer('8.4.0')
 curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 

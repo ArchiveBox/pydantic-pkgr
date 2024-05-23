@@ -261,11 +261,10 @@ str(SemVer(1, 9, 0))                                                # '1.9.0'
 
 ## Django Usage
 
-The pydantic ecosystem help us get auto-generated, type-checked Django fields & forms 
-that support `BinProvider` and `Binary`.
+The pydantic ecosystem helps us get auto-generated, type-checked Django fields & forms that support `BinProvider` and `Binary`.
 
 > [!TIP]
-> For the full experience, we recommend installing these 3 excellent packages:
+> For the full Django experience, we recommend installing these 3 excellent packages:
 > - [`django-admin-data-views`](https://github.com/MrThearMan/django-admin-data-views)
 > - [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field)
 > - [`django-jsonform`](https://django-jsonform.readthedocs.io/)  
@@ -289,23 +288,31 @@ from django_pydantic_field import SchemaField
 
 from pydantic_pkgr import BinProvider, EnvProvider, Binary, SemVer
 
-DEFAULT_PROVIDER = EnvProvider()
+env = EnvProvider()
 
 class Dependency(models.Model):
     """Example model for storing information about a dependency"""
-
     name = models.CharField(max_length=63)
+    binary: Binary = SchemaField()
+    providers: list[BinProvider] = SchemaField(default=[env])
     min_version: SemVer = SchemaField(default=(0,0,1))
-    binaries: list[Binary] = SchemaField(default=[])
-    default_binprovider: BinProvider = SchemaField(default=DEFAULT_PROVIDER)
 
-curl = Binary(name='curl', providers=[DEFAULT_PROVIDER]).load()
+curl = Binary(name='curl', providers=[env]).load()  # find existing curl binary in $PATH
 
-obj = Dependency(default_binprovider=DEFAULT_PROVIDER, binaries=[curl], min_version=SemVer('0.1.5'))
-obj.save()
-
-assert obj.default_binprovider == DEFAULT_PROVIDER
-assert obj.binaries[0].provider == DEFAULT_PROVIDER
+model = Dependency(                               # create a DB record with our new model to represent curl
+    name='curl',
+    binary=curl,                                  # store Binary/BinProvider/SemVer values directly in fields
+    providers=[env],                              # no need for manual JSON serialization / schema checking
+    min_version=SemVer('6.5.0'),
+)
+model.save()                                      
+model = Dependency.objects.get(name='curl')       # everything is transparently serialized to/from the DB,
+                                                  # and is ready to go immediately after querying:
+print(model.binary.abspath)                       #   Path('/usr/local/bin/curl')
+model.binary.exec(['--version'])                  #   curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
+assert model.binary.abspath == curl.abspath == env.get_abspath('curl')
+assert model.providers[0] == curl.provider == env
+assert model.binary.provider == curl.provider == env
 ```
 *For a full example see our provided [`django_example_project/`](https://github.com/ArchiveBox/pydantic-pkgr/tree/main/django_example_project)...*
 

@@ -248,6 +248,8 @@ class InstallTest(unittest.TestCase):
 
         if is_on_macos or (is_on_linux and has_brew):
             self.assertTrue(has_brew)
+            if exception:
+                raise exception
             self.assertIsNone(exception)
             self.assertTrue(result)
         elif is_on_windows or (is_on_linux and not has_brew):
@@ -277,6 +279,8 @@ class InstallTest(unittest.TestCase):
 
         if is_on_linux:
             self.assertTrue(has_apt)
+            if exception:
+                raise exception
             self.assertIsNone(exception)
             self.assertTrue(result)
         elif is_on_windows or is_on_macos:

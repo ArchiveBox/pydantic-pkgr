@@ -29,7 +29,7 @@ pip install pydantic-pkgr
 <br/>
 
 > [!WARNING]
-> This is `ALPHA` software under active development, it's not ready for production use yet.
+> This is `BETA` software, the API is mostly stable but there may be minor changes later on.
 
 
 **Source Code**: [https://github.com/ArchiveBox/pydantic-pkgr/](https://github.com/ArchiveBox/pydantic-pkgr/)

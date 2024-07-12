@@ -81,11 +81,11 @@ apt = AptProvider()
 apt.install('wget')
 print(apt.PATH, apt.get_abspaths('wget'), apt.get_version('wget'))
 
-# our Binary API provides a nice type-checkable, validated, serializable handle
 # even if packages are installed by tools we don't control (e.g. pyinfra/ansible/puppet/etc.)
 from pyinfra.operations import apt
 apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
 
+# our Binary API provides a nice type-checkable, validated, serializable handle
 ffmpeg = Binary(name='ffmpeg').load()
 print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True ...
 print(ffmpeg.loaded_abspaths)       # show all the ffmpeg binaries found in $PATH (in case theres more than one available)

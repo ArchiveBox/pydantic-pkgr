@@ -269,7 +269,7 @@ LazyImportStr = Annotated[str, AfterValidator(is_valid_python_dotted_import)]
 ProviderHandler = Callable[..., Any] | Callable[[], Any]                               # must take no args [], or [bin_name: str, **kwargs]
 #ProviderHandlerStr = Annotated[str, AfterValidator(lambda s: s.startswith('self.'))]
 ProviderHandlerRef = LazyImportStr | ProviderHandler
-ProviderLookupDict = Dict[str, LazyImportStr]
+ProviderLookupDict = Dict[str, ProviderHandlerRef]
 ProviderType = Literal['abspath', 'version', 'subdeps', 'install']
 
 
@@ -349,6 +349,10 @@ class BinProvider(BaseModel):
     def resolve_provider_func(self, provider_func: ProviderHandlerRef | None) -> ProviderHandler | None:
         if provider_func is None:
             return None
+
+        # if provider_func is already a callable, return it directly
+        if isinstance(provider_func, Callable):
+            return TypeAdapter(ProviderHandler).validate_python(provider_func)
 
         # if provider_func is a dotted path to a function on self, swap it for the actual function
         if isinstance(provider_func, str) and provider_func.startswith('self.'):

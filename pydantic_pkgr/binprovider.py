@@ -300,6 +300,13 @@ class BinProvider(BaseModel):
     _version_cache: ClassVar = {}
     _install_cache: ClassVar = {}
 
+    def __getattr__(self, item):
+        """Allow accessing fields as attributes by both field name and alias name"""
+        for field, meta in self.model_fields.items():
+            if meta.alias == item:
+                return getattr(self, field)
+        return super().__getattr__(item)
+
     # def provider_version(self) -> SemVer | None:
     #     """Version of the actual underlying package manager (e.g. pip v20.4.1)"""
     #     if self.name in ('env', 'vendor'):

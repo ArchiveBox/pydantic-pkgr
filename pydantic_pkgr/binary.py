@@ -76,12 +76,12 @@ class Binary(ShallowBinary):
         return self
 
     @field_validator('loaded_abspath', mode='before')
-    def parse_abspath(cls, value: Any):
-        return bin_abspath(value)
+    def parse_abspath(cls, value: Any) -> Optional[HostBinPath]:
+        return bin_abspath(value) if value else None
 
     @field_validator('loaded_version', mode='before')
-    def parse_version(cls, value: Any):
-        return value and SemVer(value)
+    def parse_version(cls, value: Any) -> Optional[SemVer]:
+        return SemVer(value) if value else None
 
     @field_serializer('provider_overrides', when_used='json')
     def serialize_overrides(self, provider_overrides: Dict[BinProviderName, ProviderLookupDict]) -> Dict[BinProviderName, Dict[str, str]]:

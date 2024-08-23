@@ -134,7 +134,7 @@ class Binary(ShallowBinary):
                 installed_bin = provider.install(self.name, overrides=self.provider_overrides.get(provider.name))
                 if installed_bin:
                     # print('INSTALLED', self.name, installed_bin)
-                    return self.__class__.model_validate(installed_bin.model_dump(exclude=('providers_supported',)))
+                    return self.__class__.model_validate({**self.model_dump(), **installed_bin.model_dump(exclude=('providers_supported',))})
             except Exception as err:
                 # print(err)
                 inner_exc = err
@@ -157,7 +157,7 @@ class Binary(ShallowBinary):
                 installed_bin = provider.load(self.name, cache=cache, overrides=self.provider_overrides.get(provider.name))
                 if installed_bin:
                     # print('LOADED', provider, self.name, installed_bin)
-                    return self.__class__.model_validate(installed_bin.model_dump(exclude=('providers_supported',)))
+                    return self.__class__.model_validate({**self.model_dump(), **installed_bin.model_dump(exclude=('providers_supported',))})
             except Exception as err:
                 # print(err)
                 inner_exc = err
@@ -180,7 +180,7 @@ class Binary(ShallowBinary):
                 installed_bin = provider.load_or_install(self.name, overrides=self.provider_overrides.get(provider.name), cache=cache)
                 if installed_bin:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
-                    return self.__class__.model_validate(installed_bin.model_dump(exclude=('providers_supported',)))
+                    return self.__class__.model_validate({**self.model_dump(), **installed_bin.model_dump(exclude=('providers_supported',))})
             except Exception as err:
                 # print(err)
                 inner_exc = err

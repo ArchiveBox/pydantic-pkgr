@@ -60,7 +60,6 @@ class Binary(ShallowBinary):
     @model_validator(mode='after')
     def validate(self):
         # assert self.name, 'Binary.name must not be empty'
-        self.loaded_abspath = bin_abspath(self.name) or self.name
         self.description = self.description or self.name
         
         assert self.providers_supported, f'No providers were given for package {self.name}'

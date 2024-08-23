@@ -95,7 +95,10 @@ class Binary(ShallowBinary):
     @computed_field
     @property
     def loaded_abspaths(self) -> Dict[BinProviderName, List[HostBinPath]]:
-        assert self.loaded_abspath, 'Binary must be loaded before getting abspath list'
+        if not self.loaded_abspath:
+            # binary has not been loaded yet
+            return {}
+        
         all_bin_abspaths = {self.loaded_provider: [self.loaded_abspath]} if self.loaded_provider  else {}
         for provider in self.providers_supported:
             if not provider.PATH:

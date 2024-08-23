@@ -95,7 +95,7 @@ HostBinPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)] # remov
 # not all bins need to be executable to be bins, some are scripts
 
 @validate_call
-def bin_abspath(bin_path_or_name: BinName | Path, PATH: PATHStr | None=None) -> HostBinPath | None:
+def bin_abspath(bin_path_or_name: str | BinName | Path, PATH: PATHStr | None=None) -> HostBinPath | None:
     assert bin_path_or_name
     if PATH is None:
         PATH = os.environ.get('PATH', '/bin')

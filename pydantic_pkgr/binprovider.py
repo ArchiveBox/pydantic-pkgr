@@ -180,6 +180,13 @@ class ShallowBinary(BaseModel):
     loaded_abspath: HostBinPath = Field(alias='abspath')
     loaded_version: SemVer = Field(alias='version')
 
+    def __getattr__(self, item):
+        """Allow accessing fields as attributes by both field name and alias name"""
+        for field, meta in self.model_fields.items():
+            if meta.alias == item:
+                return getattr(self, field)
+        return super().__getattr__(item)
+
     @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
     @property
     def bin_filename(self) -> BinName:

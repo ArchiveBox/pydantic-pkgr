@@ -153,8 +153,8 @@ class TestBinary(unittest.TestCase):
         python_bin = Binary(name='python', providers=[provider])
 
         self.assertIsNone(python_bin.loaded_provider)
+        self.assertIsNone(python_bin.loaded_abspath)
         self.assertIsNone(python_bin.loaded_version)
-        self.assertEqual(python_bin.loaded_abspath, Path(sys.executable).absolute())
 
         python_bin = python_bin.load()
 

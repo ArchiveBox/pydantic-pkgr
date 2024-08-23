@@ -752,10 +752,14 @@ class EnvProvider(BinProvider):
     abspath_provider: ProviderLookupDict = {
         **BinProvider.__fields__['abspath_provider'].default,
         'python': 'self.get_python_abspath',
+        'sqlite': 'self.get_sqlite_abspath',
+        'django': 'self.get_django_abspath',
     }
     version_provider: ProviderLookupDict = {
         **BinProvider.__fields__['version_provider'].default,
         'python': 'self.get_python_version',
+        'sqlite': 'self.get_sqlite_version',
+        'django': 'self.get_django_version',
     }
 
     @staticmethod
@@ -765,7 +769,26 @@ class EnvProvider(BinProvider):
     @staticmethod
     def get_python_version():
         return '{}.{}.{}'.format(*sys.version_info[:3])
+    
+    @staticmethod
+    def get_sqlite_abspath():
+        from sqlite3 import dbapi2 as sqlite3
+        return Path(inspect.getfile(sqlite3))
 
+    @staticmethod
+    def get_sqlite_version():
+        from sqlite3 import dbapi2 as sqlite3
+        return sqlite3.version
+
+    @staticmethod
+    def get_django_abspath():
+        import django
+        return Path(inspect.getfile(django))
+
+    @staticmethod
+    def get_django_version():
+        import django
+        return '{}.{}.{} {} ({})'.format(*django.VERSION)
 
     def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
         """The env provider is ready-only and does not install any packages, so this is a no-op"""

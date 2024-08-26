@@ -280,45 +280,49 @@ pip install django-pydantic-field
 
 *Fore more info see the [`django-pydantic-field`](https://github.com/surenkov/django-pydantic-field) docs...*
 
-
-Usage in your `models.py`:
+Example Django `models.py` showing how to store `Binary` and `BinProvider` instances in DB fields:
 ```python
 from django.db import models
 from django_pydantic_field import SchemaField
 
 from pydantic_pkgr import BinProvider, EnvProvider, Binary, SemVer
 
-env = EnvProvider()
-
 class Dependency(models.Model):
     """Example model for storing information about a dependency"""
     name = models.CharField(max_length=63)
     binary: Binary = SchemaField()
-    providers: list[BinProvider] = SchemaField(default=[env])
+    providers: list[BinProvider] = SchemaField(default=[EnvProvider()])
     min_version: SemVer = SchemaField(default=(0,0,1))
+```
 
-curl = Binary(name='curl', providers=[env]).load()  # find existing curl binary in $PATH
+And here's how to save a `Binary` using the example model:
+```python
+# find existing curl Binary by loading from $PATH environment
+curl = Binary(name='curl', providers=[EnvProvider()]).load()
 
-model = Dependency(                               # create a DB record with our new model to represent curl
+# save it to the DB using our new model
+obj = Dependency(
     name='curl',
     binary=curl,                                  # store Binary/BinProvider/SemVer values directly in fields
     providers=[env],                              # no need for manual JSON serialization / schema checking
     min_version=SemVer('6.5.0'),
 )
-model.save()                                      
-model = Dependency.objects.get(name='curl')       # everything is transparently serialized to/from the DB,
+obj.save()                                      
+```
+
+When fetching it back from the DB, the `Binary` field is auto-deserialized / immediately usable:
+```
+obj = Dependency.objects.get(name='curl')         # everything is transparently serialized to/from the DB,
                                                   # and is ready to go immediately after querying:
-print(model.binary.abspath)                       #   Path('/usr/local/bin/curl')
-model.binary.exec(['--version'])                  #   curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
-assert model.binary.abspath == curl.abspath == env.get_abspath('curl')
-assert model.providers[0] == curl.provider == env
-assert model.binary.provider == curl.provider == env
+assert obj.binary.abspath == curl.abspath
+print(obj.binary.abspath)                         #   Path('/usr/local/bin/curl')
+obj.binary.exec(['--version'])                    #   curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
 ```
 *For a full example see our provided [`django_example_project/`](https://github.com/ArchiveBox/pydantic-pkgr/tree/main/django_example_project)...*
 
 <br/>
 
-### Django Admin Usage: Show read-only list of Binaries in Admin UI
+### Django Admin Usage: Display `Binary` objects nicely in the Admin UI
 
 <img height="220" alt="Django Admin binaries list view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/a9980217-f39e-434e-b266-20cd6feb17c3" align="top"><img height="220" alt="Django Admin binaries detail view" src="https://github.com/ArchiveBox/pydantic-pkgr/assets/511499/d4d9086e-c8f4-4b6e-8ee8-8c8a864715b0" align="top">
 

@@ -285,22 +285,22 @@ Example Django `models.py` showing how to store `Binary` and `BinProvider` insta
 from django.db import models
 from django_pydantic_field import SchemaField
 
-from pydantic_pkgr import BinProvider, EnvProvider, Binary, SemVer
+from pydantic_pkgr import BinProvider, Binary, SemVer
 
-class Dependency(models.Model):
+class InstalledBinary(models.Model):
     name = models.CharField(max_length=63)
     binary: Binary = SchemaField()
-    providers: list[BinProvider] = SchemaField(default=[EnvProvider()])
-    min_version: SemVer = SchemaField(default=(0,0,1))
+    providers: list[BinProvider] = SchemaField(default=[])
+    version: SemVer = SchemaField(default=(0,0,1))
 ```
 
 And here's how to save a `Binary` using the example model:
 ```python
-# find existing curl Binary by loading from $PATH environment
-curl = Binary(name='curl', providers=[EnvProvider()]).load()
+# find existing curl Binary in $PATH
+curl = Binary(name='curl').load()
 
 # save it to the DB using our new model
-obj = Dependency(
+obj = InstalledBinary(
     name='curl',
     binary=curl,                                  # store Binary/BinProvider/SemVer values directly in fields
     providers=[env],                              # no need for manual JSON serialization / schema checking
@@ -311,7 +311,7 @@ obj.save()
 
 When fetching it back from the DB, the `Binary` field is auto-deserialized / immediately usable:
 ```
-obj = Dependency.objects.get(name='curl')         # everything is transparently serialized to/from the DB,
+obj = InstalledBinary.objects.get(name='curl')    # everything is transparently serialized to/from the DB,
                                                   # and is ready to go immediately after querying:
 assert obj.binary.abspath == curl.abspath
 print(obj.binary.abspath)                         #   Path('/usr/local/bin/curl')

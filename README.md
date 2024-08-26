@@ -288,7 +288,6 @@ from django_pydantic_field import SchemaField
 from pydantic_pkgr import BinProvider, EnvProvider, Binary, SemVer
 
 class Dependency(models.Model):
-    """Example model for storing information about a dependency"""
     name = models.CharField(max_length=63)
     binary: Binary = SchemaField()
     providers: list[BinProvider] = SchemaField(default=[EnvProvider()])

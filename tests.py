@@ -60,11 +60,11 @@ class TestBinProvider(unittest.TestCase):
 
 
     def test_bash_env(self):
-        provider = EnvProvider()
+        envprovider = EnvProvider()
 
         SYS_BASH_VERSION = subprocess.check_output('bash --version', shell=True, text=True).split('\n')[0]
 
-        bash_bin = provider.load_or_install('bash')
+        bash_bin = envprovider.load_or_install('bash')
         self.assertEqual(bash_bin.loaded_version, SemVer(SYS_BASH_VERSION))
         self.assertGreater(bash_bin.loaded_version, SemVer('3.0.0'))
         self.assertEqual(bash_bin.loaded_abspath, Path(shutil.which('bash')))
@@ -85,16 +85,16 @@ class TestBinProvider(unittest.TestCase):
         class CustomProvider(BinProvider):
             name: str = 'CustomProvider'
 
-            abspath_provider: ProviderLookupDict = {
+            abspath_handler: ProviderLookupDict = {
                 '*': 'self.on_abspath_custom'
             }
-            version_provider: ProviderLookupDict = {
+            version_handler: ProviderLookupDict = {
                 '*': 'self.on_version_custom'
             }
-            packages_provider: ProviderLookupDict = {
+            packages_handler: ProviderLookupDict = {
                 '*': 'self.on_packages_custom'
             }
-            install_provider: ProviderLookupDict = {
+            install_handler: ProviderLookupDict = {
                 '*': 'does.not.exist'
             }
 
@@ -117,7 +117,7 @@ class TestBinProvider(unittest.TestCase):
             def on_install_somebin(self, bin_name: str, **context):
                 TestRecord.called_install_custom = True
 
-        provider = CustomProvider(install_provider={'somebin': 'self.on_install_somebin'})
+        provider = CustomProvider(install_handler={'somebin': 'self.on_install_somebin'})
 
         self.assertFalse(TestRecord.called_abspath_custom)
         self.assertFalse(TestRecord.called_version_custom)
@@ -148,18 +148,19 @@ class TestBinProvider(unittest.TestCase):
 class TestBinary(unittest.TestCase):
 
     def test_python_bin(self):
-        provider = EnvProvider()
+        envprovider = EnvProvider()
 
-        python_bin = Binary(name='python', providers=[provider])
+        python_bin = Binary(name='python', binproviders=[envprovider])
 
-        self.assertIsNone(python_bin.loaded_provider)
+        self.assertIsNone(python_bin.loaded_binprovider)
         self.assertIsNone(python_bin.loaded_abspath)
         self.assertIsNone(python_bin.loaded_version)
 
         python_bin = python_bin.load()
 
-        shallow_bin = provider.load_or_install('python')
-        self.assertEqual(python_bin.loaded_provider, shallow_bin.loaded_provider)
+        shallow_bin = envprovider.load_or_install('python')
+        assert shallow_bin and python_bin.loaded_binprovider
+        self.assertEqual(python_bin.loaded_binprovider, shallow_bin.loaded_binprovider)
         self.assertEqual(python_bin.loaded_abspath, shallow_bin.loaded_abspath)
         self.assertEqual(python_bin.loaded_version, shallow_bin.loaded_version)
 
@@ -177,8 +178,7 @@ def flatten(xss):
 
 class InstallTest(unittest.TestCase):
 
-    def install_with_provider(self, provider, binary):
-
+    def install_with_binprovider(self, provider, binary):
 
         binary_bin = binary.load_or_install()
         provider_bin = provider.load_or_install(bin_name=binary.name)
@@ -186,7 +186,7 @@ class InstallTest(unittest.TestCase):
         # print('\n'.join(f'{provider}={path}' for provider, path in binary.loaded_abspaths.items()), '\n')
         # print()
 
-        self.assertEqual(binary_bin.loaded_provider, provider_bin.loaded_provider)
+        self.assertEqual(binary_bin.loaded_binprovider, provider_bin.loaded_binprovider)
         self.assertEqual(binary_bin.loaded_abspath, provider_bin.loaded_abspath)
         self.assertEqual(binary_bin.loaded_version, provider_bin.loaded_version)
 
@@ -214,20 +214,20 @@ class InstallTest(unittest.TestCase):
 
     def test_env_provider(self):
         provider = EnvProvider()
-        binary = Binary(name='wget', providers=[provider]).load()
-        self.install_with_provider(provider, binary)
+        binary = Binary(name='wget', binproviders=[provider]).load()
+        self.install_with_binprovider(provider, binary)
 
     def test_pip_provider(self):
-        provider = PipProvider()
+        pipprovider = PipProvider()
         # print(provider.PATH)
-        binary = Binary(name='wget', providers=[provider])
-        self.install_with_provider(provider, binary)
+        binary = Binary(name='wget', binproviders=[pipprovider])
+        self.install_with_binprovider(pipprovider, binary)
 
     def test_npm_provider(self):
-        provider = NpmProvider()
+        npmprovider = NpmProvider()
         # print(provider.PATH)
-        binary = Binary(name='wget', providers=[provider])
-        self.install_with_provider(provider, binary)
+        binary = Binary(name='wget', binproviders=[npmprovider])
+        self.install_with_binprovider(npmprovider, binary)
 
     def test_brew_provider(self):
         # print(provider.PATH)
@@ -250,8 +250,8 @@ class InstallTest(unittest.TestCase):
         exception = None
         result = None
         try:
-            binary = Binary(name='wget', providers=[provider])
-            result = self.install_with_provider(provider, binary)
+            binary = Binary(name='wget', binproviders=[provider])
+            result = self.install_with_binprovider(provider, binary)
         except Exception as err:
             exception = err
 
@@ -287,8 +287,8 @@ class InstallTest(unittest.TestCase):
             self.assertFalse(provider.PATH)
         try:
             # print(provider.PATH)
-            binary = Binary(name='wget', providers=[provider])
-            result = self.install_with_provider(provider, binary)
+            binary = Binary(name='wget', binproviders=[provider])
+            result = self.install_with_binprovider(provider, binary)
         except Exception as err:
             exception = err
 

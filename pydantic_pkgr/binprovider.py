@@ -12,16 +12,16 @@ from pathlib import Path
 from subprocess import run, PIPE, CompletedProcess
 
 from pydantic_core import core_schema, ValidationError
-from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field, field_validator, model_validator
+from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field, field_validator, model_validator, InstanceOf
 
 
-def validate_bin_provider_name(name: str) -> str:
+def validate_binprovider_name(name: str) -> str:
     assert 1 < len(name) < 16, 'BinProvider names must be between 1 and 16 characters long'
     assert name.replace('_', '').isalnum(), 'BinProvider names can only contain a-Z0-9 and underscores'
     assert name[0].isalpha(), 'BinProvider names must start with a letter'
     return name
 
-BinProviderName = Annotated[str, AfterValidator(validate_bin_provider_name)]
+BinProviderName = Annotated[str, AfterValidator(validate_binprovider_name)]
 # in practice this is essentially BinProviderName: Literal['env', 'pip', 'apt', 'brew', 'npm', 'vendor']
 # but because users can create their own BinProviders we cant restrict it to a preset list of literal names
 
@@ -173,12 +173,15 @@ class ShallowBinary(BaseModel):
     model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
 
     name: BinName = ''
+    description: str = ''
 
-    providers_supported: List['BinProvider'] = Field(default=[], alias='providers')
+    binproviders_supported: List[InstanceOf['BinProvider']] = Field(default=[], alias='binproviders')
+    provider_overrides: Dict[BinProviderName, 'ProviderLookupDict'] = Field(default={}, alias='overrides')
 
-    loaded_provider: BinProviderName = Field(default='env', alias='provider')
+    loaded_binprovider: InstanceOf['BinProvider'] = Field(alias='binprovider')
     loaded_abspath: HostBinPath = Field(alias='abspath')
     loaded_version: SemVer = Field(alias='version')
+
 
     def __getattr__(self, item):
         """Allow accessing fields as attributes by both field name and alias name"""
@@ -186,6 +189,11 @@ class ShallowBinary(BaseModel):
             if meta.alias == item:
                 return getattr(self, field)
         return super().__getattr__(item)
+    
+    @model_validator(mode='after')
+    def validate(self):
+        self.description = self.description or self.name
+        return self
 
     @computed_field                                                                                           # type: ignore[misc]  # see mypy issue #1362
     @property
@@ -270,7 +278,7 @@ ProviderHandler = Callable[..., Any] | Callable[[], Any]                        
 #ProviderHandlerStr = Annotated[str, AfterValidator(lambda s: s.startswith('self.'))]
 ProviderHandlerRef = LazyImportStr | ProviderHandler
 ProviderLookupDict = Dict[str, ProviderHandlerRef]
-ProviderType = Literal['abspath', 'version', 'packages', 'install']
+HandlerType = Literal['abspath', 'version', 'packages', 'install']
 
 
 # class Host(BaseModel):
@@ -284,17 +292,16 @@ ProviderType = Literal['abspath', 'version', 'packages', 'install']
 
 
 class BinProvider(BaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
-    
+    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True, revalidate_instances='always')
     name: BinProviderName = ''
 
     PATH: PATHStr = Field(default='')        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
     INSTALLER_BIN: BinName = 'env'
     
-    abspath_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
-    version_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
-    packages_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_packages'}, exclude=True)
-    install_provider: ProviderLookupDict = Field(default={'*': 'self.on_install'}, exclude=True)
+    abspath_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
+    version_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
+    packages_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_packages'}, exclude=True)
+    install_handler: ProviderLookupDict = Field(default={'*': 'self.on_install'}, exclude=True)
 
     _abspath_cache: ClassVar = {}
     _version_cache: ClassVar = {}
@@ -302,13 +309,19 @@ class BinProvider(BaseModel):
 
     def __getattr__(self, item):
         """Allow accessing fields as attributes by both field name and alias name"""
+        if item in ('__fields__', 'model_fields'):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+        
         for field, meta in self.model_fields.items():
             if meta.alias == item:
                 return getattr(self, field)
         return super().__getattr__(item)
     
-    def __str__(self) -> str:
-        return f'{self.INSTALLER_BIN.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
+    # def __str__(self) -> str:
+    #     return f'{self.name.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
+
+    # def __repr__(self) -> str:
+    #     return f'{self.name.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
     
     @computed_field
     @property
@@ -325,14 +338,14 @@ class BinProvider(BaseModel):
     def is_valid(self) -> bool:
         return bool(self.INSTALLER_BIN_ABSPATH)
 
-    # def provider_version(self) -> SemVer | None:
+    # def installer_version(self) -> SemVer | None:
     #     """Version of the actual underlying package manager (e.g. pip v20.4.1)"""
     #     if self.name in ('env', 'vendor'):
     #         return SemVer('0.0.0')
     #     installer_binpath = Path(shutil.which(self.name)).resolve()
     #     return bin_version(installer_binpath)
 
-    # def provider_host(self) -> Host:
+    # def installer_host(self) -> Host:
     #     """Information about the host env, archictecture, and OS needed to select & build packages"""
     #     p = platform.uname()
     #     return Host(
@@ -361,97 +374,97 @@ class BinProvider(BaseModel):
             PATH = ':'.join([python_bin_dir, *PATH.split(':')])
         return TypeAdapter(PATHStr).validate_python(PATH)
 
-    def get_default_providers(self):
-        return self.get_providers_for_bin('*')
+    def get_default_handlers(self):
+        return self.get_handlers_for_bin('*')
 
-    def resolve_provider_func(self, provider_func: ProviderHandlerRef | None) -> ProviderHandler | None:
-        if provider_func is None:
+    def resolve_handler_func(self, handler_func: ProviderHandlerRef | None) -> ProviderHandler | None:
+        if handler_func is None:
             return None
 
-        # if provider_func is already a callable, return it directly
-        if isinstance(provider_func, Callable):
-            return TypeAdapter(ProviderHandler).validate_python(provider_func)
+        # if handler_func is already a callable, return it directly
+        if isinstance(handler_func, Callable):
+            return TypeAdapter(ProviderHandler).validate_python(handler_func)
 
-        # if provider_func is a dotted path to a function on self, swap it for the actual function
-        if isinstance(provider_func, str) and provider_func.startswith('self.'):
-            provider_func = getattr(self, provider_func.split('self.', 1)[-1])
+        # if handler_func is a dotted path to a function on self, swap it for the actual function
+        if isinstance(handler_func, str) and handler_func.startswith('self.'):
+            handler_func = getattr(self, handler_func.split('self.', 1)[-1])
 
-        # if provider_func is a dot-formatted import string, import the function
-        if isinstance(provider_func, str):
+        # if handler_func is a dot-formatted import string, import the function
+        if isinstance(handler_func, str):
             try:
                 from django.utils.module_loading import import_string
             except ImportError:
                 from importlib import import_module
                 import_string = import_module
 
-            package_name, module_name, classname, path = provider_func.split('.', 3)   # -> abc, def, ghi.jkl
+            package_name, module_name, classname, path = handler_func.split('.', 3)   # -> abc, def, ghi.jkl
 
             # get .ghi.jkl nested attr present on module abc.def
             imported_module = import_string(f'{package_name}.{module_name}.{classname}')
-            provider_func = operator.attrgetter(path)(imported_module)
+            handler_func = operator.attrgetter(path)(imported_module)
 
             # # abc.def.ghi.jkl  -> 1, 2, 3
             # for idx in range(1, len(path)):
             #     parent_path = '.'.join(path[:-idx])  # abc.def.ghi
             #     try:
             #         parent_module = import_string(parent_path)
-            #         provider_func = getattr(parent_module, path[-idx])
+            #         handler_func = getattr(parent_module, path[-idx])
             #     except AttributeError, ImportError:
             #         continue
 
-        assert provider_func, (
-            f'{self.__class__.__name__} provider func for {bin_name} was not a function or dotted-import path: {provider_func}')
+        assert handler_func, (
+            f'{self.__class__.__name__} handler func for {bin_name} was not a function or dotted-import path: {handler_func}')
 
-        return TypeAdapter(ProviderHandler).validate_python(provider_func)
+        return TypeAdapter(ProviderHandler).validate_python(handler_func)
 
     @validate_call
-    def get_providers_for_bin(self, bin_name: str) -> ProviderLookupDict:
-        providers_for_bin = {
-            'abspath': self.abspath_provider.get(bin_name),
-            'version': self.version_provider.get(bin_name),
-            'packages': self.packages_provider.get(bin_name),
-            'install': self.install_provider.get(bin_name),
+    def get_handlers_for_bin(self, bin_name: str) -> ProviderLookupDict:
+        handlers_for_bin = {
+            'abspath': self.abspath_handler.get(bin_name),
+            'version': self.version_handler.get(bin_name),
+            'packages': self.packages_handler.get(bin_name),
+            'install': self.install_handler.get(bin_name),
         }
-        only_set_providers_for_bin = {k: v for k, v in providers_for_bin.items() if v is not None}
+        only_set_handlers_for_bin = {k: v for k, v in handlers_for_bin.items() if v is not None}
         
-        return only_set_providers_for_bin
+        return only_set_handlers_for_bin
 
     @validate_call
-    def get_provider_for_action(self, bin_name: BinName, provider_type: ProviderType, default_provider: Optional[ProviderHandlerRef]=None, overrides: Optional[ProviderLookupDict]=None) -> ProviderHandler:
+    def get_handler_for_action(self, bin_name: BinName, handler_type: HandlerType, default_handler: Optional[ProviderHandlerRef]=None, overrides: Optional[ProviderLookupDict]=None) -> ProviderHandler:
         """
-        Get the provider func for a given key + Dict of provider callbacks + fallback default provider.
-        e.g. get_provider_for_action(bin_name='yt-dlp', 'install', default_provider=self.on_install, ...) -> Callable
+        Get the handler func for a given key + Dict of handler callbacks + fallback default handler.
+        e.g. get_handler_for_action(bin_name='yt-dlp', 'install', default_handler=self.on_install, ...) -> Callable
         """
 
-        provider_func_ref = (
-            (overrides or {}).get(provider_type)
-            or self.get_providers_for_bin(bin_name).get(provider_type)
-            or self.get_default_providers().get(provider_type)
-            or default_provider
+        handler_func_ref = (
+            (overrides or {}).get(handler_type)
+            or self.get_handlers_for_bin(bin_name).get(handler_type)
+            or self.get_default_handlers().get(handler_type)
+            or default_handler
         )
-        # print('getting provider for action', bin_name, provider_type, provider_func)
+        # print('getting handler for action', bin_name, handler_type, handler_func)
 
-        provider_func = self.resolve_provider_func(provider_func_ref)
+        handler_func = self.resolve_handler_func(handler_func_ref)
 
-        assert provider_func, f'No {self.name} provider func was found for {bin_name} in: {self.__class__.__name__}.'
+        assert handler_func, f'No {self.name} handler func was found for {bin_name} in: {self.__class__.__name__}.'
 
-        return provider_func
+        return handler_func
 
     @validate_call
-    def call_provider_for_action(self, bin_name: BinName, provider_type: ProviderType, default_provider: Optional[ProviderHandlerRef]=None, overrides: Optional[ProviderLookupDict]=None, **kwargs) -> Any:
-        provider_func: ProviderHandler = self.get_provider_for_action(
+    def call_handler_for_action(self, bin_name: BinName, handler_type: HandlerType, default_handler: Optional[ProviderHandlerRef]=None, overrides: Optional[ProviderLookupDict]=None, **kwargs) -> Any:
+        handler_func: ProviderHandler = self.get_handler_for_action(
             bin_name=bin_name,
-            provider_type=provider_type,
-            default_provider=default_provider,
+            handler_type=handler_type,
+            default_handler=default_handler,
             overrides=overrides,
         )
-        if not func_takes_args_or_kwargs(provider_func):
+        if not func_takes_args_or_kwargs(handler_func):
             # if it's a pure argless lambdas, dont pass bin_path and other **kwargs
-            provider_func_without_args = cast(Callable[[], Any], provider_func)
-            return provider_func_without_args()
+            handler_func_without_args = cast(Callable[[], Any], handler_func)
+            return handler_func_without_args()
 
-        provider_func = cast(Callable[..., Any], provider_func)
-        return provider_func(bin_name, **kwargs)
+        handler_func = cast(Callable[..., Any], handler_func)
+        return handler_func(bin_name, **kwargs)
 
     def setup_PATH(self):
         for path in reversed(self.PATH.split(':')):
@@ -504,10 +517,10 @@ class BinProvider(BaseModel):
     @validate_call
     def get_abspath(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> HostBinPath | None:
         self.setup_PATH()
-        abspath = self.call_provider_for_action(
+        abspath = self.call_handler_for_action(
             bin_name=bin_name,
-            provider_type='abspath',
-            default_provider=self.on_get_abspath,
+            handler_type='abspath',
+            default_handler=self.on_get_abspath,
             overrides=overrides,
         )
         if not abspath:
@@ -518,10 +531,10 @@ class BinProvider(BaseModel):
 
     @validate_call
     def get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, overrides: Optional[ProviderLookupDict]=None) -> SemVer | None:
-        version = self.call_provider_for_action(
+        version = self.call_handler_for_action(
             bin_name=bin_name,
-            provider_type='version',
-            default_provider=self.on_get_version,
+            handler_type='version',
+            default_handler=self.on_get_version,
             overrides=overrides,
             abspath=abspath,
         )
@@ -533,10 +546,10 @@ class BinProvider(BaseModel):
 
     @validate_call
     def get_packages(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> InstallArgs:
-        packages = self.call_provider_for_action(
+        packages = self.call_handler_for_action(
             bin_name=bin_name,
-            provider_type='packages',
-            default_provider=self.on_get_packages,
+            handler_type='packages',
+            default_handler=self.on_get_packages,
             overrides=overrides,
         )
         if not packages:
@@ -548,10 +561,10 @@ class BinProvider(BaseModel):
     def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> ShallowBinary | None:
         packages = self.get_packages(bin_name, overrides=overrides)
         self.setup_PATH()
-        self.call_provider_for_action(
+        self.call_handler_for_action(
             bin_name=bin_name,
-            provider_type='install',
-            default_provider=self.on_install,
+            handler_type='install',
+            default_handler=self.on_install,
             overrides=overrides,
             packages=packages,
         )
@@ -564,10 +577,10 @@ class BinProvider(BaseModel):
         
         result = ShallowBinary(
             name=bin_name,
-            provider=self.name,
+            binprovider=self,
             abspath=installed_abspath,
             version=installed_version,
-            providers=[self],
+            binproviders=[self],
         )
         self._install_cache[bin_name] = result
         return result
@@ -595,10 +608,10 @@ class BinProvider(BaseModel):
 
         return ShallowBinary(
             name=bin_name,
-            provider=self.name,
+            binprovider=self,
             abspath=installed_abspath,
             version=installed_version,
-            providers=[self],
+            binproviders=[self],
         )
 
     @validate_call
@@ -607,7 +620,6 @@ class BinProvider(BaseModel):
         if not installed:
             installed = self.install(bin_name=bin_name, overrides=overrides)
         return installed
-
 
 class PipProvider(BinProvider):
     name: BinProviderName = 'pip'
@@ -639,6 +651,8 @@ class PipProvider(BinProvider):
             print(proc.stdout.strip())
             print(proc.stderr.strip())
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
+        
+
 
 class NpmProvider(BinProvider):
     name: BinProviderName = 'npm'
@@ -691,8 +705,8 @@ class AptProvider(BinProvider):
     name: BinProviderName = 'apt'
     INSTALLER_BIN: BinName = 'apt-get'
     
-    packages_provider: ProviderLookupDict = {
-        **BinProvider.model_fields['packages_provider'].default,
+    packages_handler: ProviderLookupDict = {
+        **BinProvider.model_fields['packages_handler'].default,
         'yt-dlp': lambda: ['yt-dlp', 'ffmpeg'],   # always install ffmpeg when installing yt-dlp
     }
 
@@ -791,14 +805,14 @@ class EnvProvider(BinProvider):
     INSTALLER_BIN: BinName = 'env'
     PATH: PATHStr = Field(default=DEFAULT_ENV_PATH)  # add dir containing python to $PATH
 
-    abspath_provider: ProviderLookupDict = {
-        **BinProvider.__fields__['abspath_provider'].default,
+    abspath_handler: ProviderLookupDict = {
+        **BinProvider.model_fields['abspath_handler'].default,
         'python': 'self.get_python_abspath',
         # 'sqlite': 'self.get_sqlite_abspath',
         # 'django': 'self.get_django_abspath',
     }
-    version_provider: ProviderLookupDict = {
-        **BinProvider.__fields__['version_provider'].default,
+    version_handler: ProviderLookupDict = {
+        **BinProvider.model_fields['version_handler'].default,
         'python': 'self.get_python_version',
         # 'sqlite': 'self.get_sqlite_version',
         # 'django': 'self.get_django_version',
@@ -833,5 +847,5 @@ class EnvProvider(BinProvider):
     #     return '{}.{}.{} {} ({})'.format(*django.VERSION)
 
     def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
-        """The env provider is ready-only and does not install any packages, so this is a no-op"""
+        """The env BinProvider is ready-only and does not install any packages, so this is a no-op"""
         pass

@@ -44,33 +44,34 @@ from pydantic_pkgr import *
 apt, brew, pip, npm, env = AptProvider(), BrewProvider(), PipProvider(), NpmProvider(), EnvProvider()
 
 dependencies = [
-    Binary(name='curl',       providers=[env, apt, brew]),
-    Binary(name='wget',       providers=[env, apt, brew]),
-    Binary(name='yt-dlp',     providers=[env, pip, apt, brew]),
-    Binary(name='playwright', providers=[env, pip, npm]),
-    Binary(name='puppeteer',  providers=[env, npm]),
+    Binary(name='curl',       binproviders=[env, apt, brew]),
+    Binary(name='wget',       binproviders=[env, apt, brew]),
+    Binary(name='yt-dlp',     binproviders=[env, pip, apt, brew]),
+    Binary(name='playwright', binproviders=[env, pip, npm]),
+    Binary(name='puppeteer',  binproviders=[env, npm]),
 ]
 for binary in dependencies:
     binary = binary.load_or_install()
 
-    print(binary.abspath, binary.version, binary.provider, binary.is_valid)
-    # Path('/usr/bin/curl') SemVer('7.81.0') 'apt' True
+    print(binary.abspath, binary.version, binary.binprovider, binary.is_valid)
+    # Path('/usr/bin/curl') SemVer('7.81.0') AptProvider() True
 
     binary.exec(cmd=['--version'])   # curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
 ```
 
 ```python
+from pydantic import InstanceOf
 from pydantic_pkgr import Binary, BinProvider, BrewProvider, EnvProvider
 
 # you can also define binaries as classes, making them usable for type checking
 class CurlBinary(Binary):
     name: str = 'curl'
-    providers: list[BinProvider] = [BrewProvider(), EnvProvider()]
+    binproviders: List[InstanceOf[BinProvider]] = [BrewProvider(), EnvProvider()]
 
 curl = CurlBinary().install()
-assert isinstance(curl, CurlBinary)                              # CurlBinary is a unique type you can use in annotations now
-print(curl.abspath, curl.version, curl.provider, curl.is_valid)  # Path('/opt/homebrew/bin/curl') SemVer('8.4.0') 'brew' True
-curl.exec(cmd=['--version'])                                     # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
+assert isinstance(curl, CurlBinary)                                 # CurlBinary is a unique type you can use in annotations now
+print(curl.abspath, curl.version, curl.binprovider, curl.is_valid)  # Path('/opt/homebrew/bin/curl') SemVer('8.4.0') BrewProvider() True
+curl.exec(cmd=['--version'])                                        # curl 8.4.0 (x86_64-apple-darwin23.0) libcurl/8.4.0 ...
 ```
 
 ```python
@@ -150,7 +151,7 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 
 ### Example: Finding/Installing django with pip (w/ customized binpath resolution behavior)
 pip = PipProvider(
-    abspath_provider={'*': lambda bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
+    abspath_handler={'*': lambda bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
 )
 django_bin = pip.load_or_install(bin_name='django')
 print(django_bin.abspath)             # Path('/usr/lib/python3.10/site-packages/django/__init__.py')
@@ -164,7 +165,7 @@ It can define one or more `BinProvider`s that it supports, along with overrides 
 
 `Binary`s implement the following interface:
 - `load()`, `install()`, `load_or_install()` `->` `Binary`
-- `provider: BinProviderName` (`BinProviderName == str`)
+- `binprovider: InstanceOf[BinProvider]`
 - `abspath: Path`
 - `abspaths: List[Path]`
 - `version: SemVer`
@@ -177,7 +178,7 @@ class YtdlpBinary(Binary):
     name: BinName = 'ytdlp'
     description: str = 'YT-DLP (Replacement for YouTube-DL) Media Downloader'
 
-    providers_supported: List[BinProvider] = [EnvProvider(), PipProvider(), AptProvider(), BrewProvider()]
+    binproviders_supported: List[BinProvider] = [EnvProvider(), PipProvider(), AptProvider(), BrewProvider()]
     
     # customize installed package names for specific package managers
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
@@ -187,7 +188,7 @@ class YtdlpBinary(Binary):
     }
 
 ytdlp = YtdlpBinary().load_or_install()
-print(ytdlp.provider)                     # 'brew'
+print(ytdlp.binprovider)                  # BrewProvider(...)
 print(ytdlp.abspath)                      # Path('/opt/homebrew/bin/yt-dlp')
 print(ytdlp.abspaths)                     # [Path('/opt/homebrew/bin/yt-dlp'), Path('/usr/local/bin/yt-dlp')]
 print(ytdlp.version)                      # SemVer('2024.4.9')
@@ -201,7 +202,7 @@ from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, Provide
 class DockerBinary(Binary):
     name: BinName = 'docker'
 
-    providers_supported: List[BinProvider] = [EnvProvider(), AptProvider()]
+    binproviders_supported: List[BinProvider] = [EnvProvider(), AptProvider()]
     
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
         'env': {
@@ -219,7 +220,7 @@ class DockerBinary(Binary):
     }
 
 docker = DockerBinary().load_or_install()
-print(docker.provider)                    # 'env'
+print(docker.binprovider)                 # EnvProvider()
 print(docker.abspath)                     # Path('/usr/local/bin/podman')
 print(docker.abspaths)                    # [Path('/usr/local/bin/podman'), Path('/opt/homebrew/bin/podman')]
 print(docker.version)                     # SemVer('6.0.2')
@@ -229,7 +230,7 @@ print(docker.is_valid)                    # True
 # e.g. if you want to force the abspath to be at a specific path:
 custom_docker = DockerBinary(abspath='~/custom/bin/podman').load()
 print(custom_docker.name)                 # 'docker'
-print(custom_docker.provider)             # 'env'
+print(custom_docker.binprovider)          # EnvProvider()
 print(custom_docker.abspath)              # Path('/Users/example/custom/bin/podman')
 print(custom_docker.version)              # SemVer('5.0.2')
 print(custom_docker.is_valid)             # True
@@ -282,15 +283,16 @@ pip install django-pydantic-field
 
 Example Django `models.py` showing how to store `Binary` and `BinProvider` instances in DB fields:
 ```python
+from typing import List
 from django.db import models
-from django_pydantic_field import SchemaField
-
+from pydantic import InstanceOf
 from pydantic_pkgr import BinProvider, Binary, SemVer
+from django_pydantic_field import SchemaField
 
 class InstalledBinary(models.Model):
     name = models.CharField(max_length=63)
     binary: Binary = SchemaField()
-    providers: list[BinProvider] = SchemaField(default=[])
+    binproviders: List[InstanceOf[BinProvider]] = SchemaField(default=[])
     version: SemVer = SchemaField(default=(0,0,1))
 ```
 
@@ -303,7 +305,7 @@ curl = Binary(name='curl').load()
 obj = InstalledBinary(
     name='curl',
     binary=curl,                                  # store Binary/BinProvider/SemVer values directly in fields
-    providers=[env],                              # no need for manual JSON serialization / schema checking
+    binproviders=[env],                           # no need for manual JSON serialization / schema checking
     min_version=SemVer('6.5.0'),
 )
 obj.save()                                      
@@ -454,7 +456,7 @@ class CargoProvider(BinProvider):
 
 cargo = CargoProvider()
 rg = cargo.install(bin_name='ripgrep')
-print(rg.provider)                      # 'cargo'
+print(rg.binprovider)                   # CargoProvider()
 print(rg.version)                       # SemVer(14, 1, 0)
 ```
 

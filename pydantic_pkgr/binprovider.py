@@ -675,8 +675,8 @@ class PipProvider(BinProvider):
 
 
 class NpmProvider(BinProvider):
-    name: BinProviderName = 'npx'
-    INSTALLER_BIN: BinName = 'npx'
+    name: BinProviderName = 'npm'
+    INSTALLER_BIN: BinName = 'npm'
 
     PATH: PATHStr = ''
 
@@ -717,7 +717,7 @@ class NpmProvider(BinProvider):
         
         print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
-        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', '-g', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())

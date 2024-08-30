@@ -359,7 +359,10 @@ class BinProvider(BaseModel):
 
     @validate_call
     def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', **kwargs) -> CompletedProcess:
-        bin_abspath = self.get_abspath(bin_name) if isinstance(bin_name, str) else bin_name
+        if shutil.which(str(bin_name)):
+            bin_abspath = bin_name
+        else:
+            bin_abspath = self.get_abspath(str(bin_name))
         assert bin_abspath, f'BinProvider {self.name} cannot execute bin_name {bin_name} because it could not find its abspath. (Did {self.__class__.__name__}.load_or_install({bin_name}) fail?)'
         assert Path(cwd).is_dir(), f'cwd must be a valid directory: {cwd}'
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
@@ -712,13 +715,13 @@ class AptProvider(BinProvider):
 
     @model_validator(mode='after')
     def load_PATH_from_dpkg_install_location(self):
-        if not self.INSTALLER_BIN_ABSPATH:
+        if not self.INSTALLER_BIN_ABSPATH or not shutil.which('dpkg'):
             # package manager is not available on this host
             self.PATH = ''
             return self
 
         PATH = self.PATH
-        dpkg_install_dirs = self.exec(bin_name='dpkg', cmd=['-L', 'bash']).stdout.strip().split('\n')
+        dpkg_install_dirs = self.exec(bin_name=shutil.which('dpkg'), cmd=['-L', 'bash']).stdout.strip().split('\n')
         dpkg_bin_dirs = [path for path in dpkg_install_dirs if path.endswith('/bin')]
         for bin_dir in dpkg_bin_dirs:
             if str(bin_dir) not in PATH:
@@ -730,7 +733,7 @@ class AptProvider(BinProvider):
     def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.on_get_packages(bin_name)
 
-        if not (self.INSTALLER_BIN_ABSPATH and shutil.which('dpkg') and shutil.which('apt-get')):
+        if not (self.INSTALLER_BIN_ABSPATH and shutil.which('dpkg')):
             raise Exception(f'{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}')
 
         print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN} install {packages}')

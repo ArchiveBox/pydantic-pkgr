@@ -39,7 +39,7 @@ BinDirPath = Annotated[Path, AfterValidator(validate_bin_dir)]
 def validate_PATH(PATH: str | List[str]) -> str:
     paths = PATH.split(':') if isinstance(PATH, str) else list(PATH)
     assert all(Path(bin_dir) for bin_dir in paths)
-    return ':'.join(paths)
+    return ':'.join(paths).strip(':')
 
 PATHStr = Annotated[str, BeforeValidator(validate_PATH)]
 
@@ -295,7 +295,7 @@ class BinProvider(BaseModel):
     model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True, revalidate_instances='always')
     name: BinProviderName = ''
 
-    PATH: PATHStr = Field(default='')        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
+    PATH: PATHStr = Field(default=str(Path(sys.executable).parent))        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
     INSTALLER_BIN: BinName = 'env'
     
     abspath_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
@@ -367,15 +367,6 @@ class BinProvider(BaseModel):
         assert Path(cwd).is_dir(), f'cwd must be a valid directory: {cwd}'
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
         return run(cmd, stdout=PIPE, stderr=PIPE, text=True, cwd=str(cwd), **kwargs)
-
-    @field_validator('PATH', mode='after')
-    @classmethod
-    def load_PATH(cls, PATH: PATHStr) -> PATHStr:
-        python_bin_dir = str(Path(sys.executable).parent)
-
-        if python_bin_dir not in PATH:
-            PATH = ':'.join([python_bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_python(PATH)
 
     def get_default_handlers(self):
         return self.get_handlers_for_bin('*')
@@ -661,6 +652,8 @@ class NpmProvider(BinProvider):
     name: BinProviderName = 'npm'
     INSTALLER_BIN: BinName = 'npm'
 
+    PATH: PATHStr = ''
+
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self):
         if not self.INSTALLER_BIN_ABSPATH:
@@ -668,8 +661,7 @@ class NpmProvider(BinProvider):
         
         PATH = self.PATH
         
-        npm_global_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
-        npm_bin_dirs = {npm_global_dir}
+        npm_bin_dirs = set()
 
         search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())
         stop_if_reached = [str(Path('/')), str(Path('~').expanduser().absolute())]
@@ -683,9 +675,12 @@ class NpmProvider(BinProvider):
             search_dir = search_dir.parent
             num_hops += 1
         
+        npm_global_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+        npm_bin_dirs.add(npm_global_dir)
+        
         for bin_dir in npm_bin_dirs:
             if str(bin_dir) not in PATH:
-                PATH = ':'.join([str(bin_dir), *PATH.split(':')])
+                PATH = ':'.join([*PATH.split(':'), str(bin_dir)])
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
 
@@ -707,6 +702,8 @@ class NpmProvider(BinProvider):
 class AptProvider(BinProvider):
     name: BinProviderName = 'apt'
     INSTALLER_BIN: BinName = 'apt-get'
+
+    PATH: PATHStr = ''
     
     packages_handler: ProviderLookupDict = {
         **BinProvider.model_fields['packages_handler'].default,
@@ -749,7 +746,7 @@ class AptProvider(BinProvider):
 
             apt.packages(
                 name=f"Ensure {bin_name} is installed",
-                packages=packages.split(' '),
+                packages=packages,
                 update=True,
                 _sudo=True,
             )
@@ -806,7 +803,7 @@ if PYTHON_BIN_DIR not in DEFAULT_ENV_PATH:
 class EnvProvider(BinProvider):
     name: BinProviderName = 'env'
     INSTALLER_BIN: BinName = 'env'
-    PATH: PATHStr = Field(default=DEFAULT_ENV_PATH)  # add dir containing python to $PATH
+    PATH: PATHStr = DEFAULT_ENV_PATH     # add dir containing python to $PATH
 
     abspath_handler: ProviderLookupDict = {
         **BinProvider.model_fields['abspath_handler'].default,

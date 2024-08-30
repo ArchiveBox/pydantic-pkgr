@@ -220,13 +220,13 @@ class InstallTest(unittest.TestCase):
     def test_pip_provider(self):
         pipprovider = PipProvider()
         # print(provider.PATH)
-        binary = Binary(name='wget', binproviders=[pipprovider])
+        binary = Binary(name='yt-dlp', binproviders=[pipprovider])
         self.install_with_binprovider(pipprovider, binary)
 
     def test_npm_provider(self):
         npmprovider = NpmProvider()
         # print(provider.PATH)
-        binary = Binary(name='wget', binproviders=[npmprovider])
+        binary = Binary(name='single-file', binproviders=[npmprovider], overrides={'env': {'packages': lambda: ['single-file-cli']}})
         self.install_with_binprovider(npmprovider, binary)
 
     def test_brew_provider(self):

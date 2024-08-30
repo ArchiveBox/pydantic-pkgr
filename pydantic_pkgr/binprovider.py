@@ -6,13 +6,11 @@ import site
 import sysconfig
 
 from typing import Callable, Iterable, Any, Optional, Type, List, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
-from typing_extensions import Self
-from collections import namedtuple
 from pathlib import Path
 from subprocess import run, PIPE, CompletedProcess
 
-from pydantic_core import core_schema, ValidationError
-from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field, field_validator, model_validator, InstanceOf
+from pydantic_core import ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, ConfigDict, computed_field, model_validator, InstanceOf
 
 
 def validate_binprovider_name(name: str) -> str:
@@ -625,9 +623,9 @@ class PipProvider(BinProvider):
         PATH = self.PATH
 
         paths = {
-            str(Path(site.getsitepackages()).parent.parent.parent / 'bin'),       # /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin
-            str(Path(site.getusersitepackages()).parent.parent.parent / 'bin'),   # /Users/squash/Library/Python/3.9/bin
-            sysconfig.get_path('scripts'),                                         # /opt/homebrew/bin
+            *(str(Path(d).parent.parent.parent / 'bin') for d in site.getsitepackages()),     # /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin
+            str(Path(site.getusersitepackages()).parent.parent.parent / 'bin'),               # /Users/squash/Library/Python/3.9/bin
+            sysconfig.get_path('scripts'),                                                     # /opt/homebrew/bin
         }
         for bin_dir in paths:
             if bin_dir not in PATH:

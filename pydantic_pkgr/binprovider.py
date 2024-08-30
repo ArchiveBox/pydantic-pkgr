@@ -492,14 +492,16 @@ class BinProvider(BaseModel):
         return TypeAdapter(InstallArgs).validate_python([bin_name])
 
 
-    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
+    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context) -> str:
         packages = packages or self.get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.name} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
 
         print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} {packages}')
+
         # ... install logic here
-        assert True
+
+        return f'Installed {bin_name} successfully (no-op)'
 
     @validate_call
     def get_abspaths(self, bin_name: BinName) -> List[HostBinPath]:
@@ -553,7 +555,7 @@ class BinProvider(BaseModel):
     def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> ShallowBinary | None:
         packages = self.get_packages(bin_name, overrides=overrides)
         self.setup_PATH()
-        self.call_handler_for_action(
+        install_log = self.call_handler_for_action(
             bin_name=bin_name,
             handler_type='install',
             default_handler=self.on_install,
@@ -562,10 +564,10 @@ class BinProvider(BaseModel):
         )
 
         installed_abspath = self.get_abspath(bin_name, overrides=overrides)
-        assert installed_abspath, f'{self.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={self.PATH}'
+        assert installed_abspath, f'{self.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={self.PATH} LOG={install_log}'
 
         installed_version = self.get_version(bin_name, overrides=overrides, abspath=installed_abspath)
-        assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath}'
+        assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
         
         result = ShallowBinary(
             name=bin_name,
@@ -633,7 +635,7 @@ class PipProvider(BinProvider):
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
+    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
@@ -646,6 +648,8 @@ class PipProvider(BinProvider):
             print(proc.stdout.strip())
             print(proc.stderr.strip())
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
+        
+        return proc.stderr.strip() + '\n' + proc.stdout.strip()
         
 
 
@@ -685,7 +689,7 @@ class NpmProvider(BinProvider):
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
+    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
@@ -698,6 +702,8 @@ class NpmProvider(BinProvider):
             print(proc.stdout.strip())
             print(proc.stderr.strip())
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
+        
+        return proc.stderr.strip() + '\n' + proc.stdout.strip()
 
 
 class AptProvider(BinProvider):
@@ -728,7 +734,7 @@ class AptProvider(BinProvider):
         return self
 
 
-    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
+    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
 
         if not (self.INSTALLER_BIN_ABSPATH and shutil.which('dpkg')):
@@ -759,6 +765,9 @@ class AptProvider(BinProvider):
                 print(proc.stdout.strip())
                 print(proc.stderr.strip())
                 raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {packages}: {packages}')
+        
+            return proc.stderr.strip() + '\n' + proc.stdout.strip()
+        return f'Installed {packages} succesfully.'
 
 class BrewProvider(BinProvider):
     name: BinProviderName = 'brew'
@@ -779,7 +788,7 @@ class BrewProvider(BinProvider):
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
+    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
 
         if not self.INSTALLER_BIN_ABSPATH:
@@ -792,6 +801,8 @@ class BrewProvider(BinProvider):
             print(proc.stdout.strip())
             print(proc.stderr.strip())
             raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {packages}: {packages}')
+        
+        return proc.stderr.strip() + '\n' + proc.stdout.strip()
 
 
 DEFAULT_ENV_PATH = os.environ.get('PATH', '/bin')
@@ -847,6 +858,6 @@ class EnvProvider(BinProvider):
     #     import django
     #     return '{}.{}.{} {} ({})'.format(*django.VERSION)
 
-    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
+    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context) -> str:
         """The env BinProvider is ready-only and does not install any packages, so this is a no-op"""
-        pass
+        return ''

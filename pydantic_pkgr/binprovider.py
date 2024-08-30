@@ -618,19 +618,22 @@ class BinProvider(BaseModel):
 class PipProvider(BinProvider):
     name: BinProviderName = 'pip'
     INSTALLER_BIN: BinName = 'pip'
+    PATH: PATHStr = sysconfig.get_path('scripts')  # /opt/homebrew/bin
 
-    @field_validator('PATH', mode='after')
-    @classmethod
-    def load_PATH(cls, PATH: PATHStr) -> PATHStr:
+    @model_validator(mode='after')
+    def load_PATH_from_pip_sitepackages(self):
+        PATH = self.PATH
+
         paths = {
             str(Path(site.getsitepackages()).parent.parent.parent / 'bin'),       # /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin
             str(Path(site.getusersitepackages()).parent.parent.parent / 'bin'),   # /Users/squash/Library/Python/3.9/bin
-            sysconfig.get_path('scripts'),                                        # /opt/homebrew/bin
+            sysconfig.get_path('scripts'),                                         # /opt/homebrew/bin
         }
         for bin_dir in paths:
             if bin_dir not in PATH:
-                PATH = ':'.join([bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_python(PATH)
+                PATH = ':'.join([*PATH.split(':'), bin_dir])
+        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
+        return self
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.on_get_packages(bin_name)

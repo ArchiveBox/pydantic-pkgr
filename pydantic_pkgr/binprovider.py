@@ -650,6 +650,27 @@ class PipProvider(BinProvider):
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
         
         return proc.stderr.strip() + '\n' + proc.stdout.strip()
+    
+    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+        packages = self.on_get_packages(str(bin_name))
+        if not self.INSTALLER_BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
+        
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages])
+        
+        if proc.returncode != 0:
+            print(proc.stdout.strip())
+            print(proc.stderr.strip())
+            raise Exception(f'{self.__class__.__name__}: got returncode {proc.returncode} while getting {bin_name} abspath')
+        
+        output_lines = proc.stdout.strip().split('\n')
+        location = [line for line in output_lines if line.startswith('Location: ')][0].split(': ', 1)[-1]
+        PATH = str(Path(location).parent.parent.parent / 'bin')
+        abspath = shutil.which(str(bin_name), path=PATH)
+        if abspath:
+            return TypeAdapter(HostBinPath).validate_python(abspath)
+        else:
+            return None
         
 
 
@@ -704,6 +725,25 @@ class NpmProvider(BinProvider):
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
         
         return proc.stderr.strip() + '\n' + proc.stdout.strip()
+    
+    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+        packages = self.on_get_packages(str(bin_name))
+        if not self.INSTALLER_BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
+        
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['ls', *packages])
+        
+        if proc.returncode != 0:
+            print(proc.stdout.strip())
+            print(proc.stderr.strip())
+            raise Exception(f'{self.__class__.__name__}: got returncode {proc.returncode} while getting {bin_name} abspath')
+        
+        PATH = proc.stdout.strip().split('\n', 1)[0].split(' ', 1)[-1] + '/node_modules/.bin'
+        abspath = shutil.which(str(bin_name), path=PATH)
+        if abspath:
+            return TypeAdapter(HostBinPath).validate_python(abspath)
+        else:
+            return None
 
 
 class AptProvider(BinProvider):

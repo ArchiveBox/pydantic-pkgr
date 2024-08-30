@@ -253,7 +253,7 @@ class ShallowBinary(BaseModel):
 
 
 def is_valid_install_args(install_args: List[str]) -> List[str]:
-    """Make sure a string is a valid install string for a package manager, e.g. 'yt-dlp ffmpeg'"""
+    """Make sure a string is a valid install string for a package manager, e.g. ['yt-dlp', 'ffmpeg']"""
     assert install_args
     assert all(len(arg) for arg in install_args)
     return install_args
@@ -289,7 +289,7 @@ class BinProvider(BaseModel):
     name: BinProviderName = ''
 
     PATH: PATHStr = Field(default='')        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
-    BIN: BinName = 'env'
+    INSTALLER_BIN: BinName = 'env'
     
     abspath_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
     version_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
@@ -308,13 +308,13 @@ class BinProvider(BaseModel):
         return super().__getattr__(item)
     
     def __str__(self) -> str:
-        return f'{self.BIN.title()}Provider[{self.BIN_ABSPATH or self.BIN})]'
+        return f'{self.INSTALLER_BIN.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
     
     @computed_field
     @property
-    def BIN_ABSPATH(self) -> HostBinPath | None:
+    def INSTALLER_BIN_ABSPATH(self) -> HostBinPath | None:
         """Actual absolute path of the underlying package manager (e.g. /usr/local/bin/npm)"""
-        abspath = bin_abspath(self.BIN, PATH=None) or shutil.which(self.BIN)  # find self.BIN abspath using environment path
+        abspath = bin_abspath(self.INSTALLER_BIN, PATH=None) or shutil.which(self.INSTALLER_BIN)  # find self.INSTALLER_BIN abspath using environment path
         if not abspath:
             # underlying package manager not found on this host, return None
             return None
@@ -323,7 +323,7 @@ class BinProvider(BaseModel):
     @computed_field
     @property
     def is_valid(self) -> bool:
-        return bool(self.BIN_ABSPATH)
+        return bool(self.INSTALLER_BIN_ABSPATH)
 
     # def provider_version(self) -> SemVer | None:
     #     """Version of the actual underlying package manager (e.g. pip v20.4.1)"""
@@ -489,10 +489,10 @@ class BinProvider(BaseModel):
 
     def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.get_packages(bin_name)
-        if not self.BIN_ABSPATH:
-            raise Exception(f'{self.name} install method is not available on this host ({self.BIN} not found in $PATH)')
+        if not self.INSTALLER_BIN_ABSPATH:
+            raise Exception(f'{self.name} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} {packages}')
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} {packages}')
         # ... install logic here
         assert True
 
@@ -611,7 +611,7 @@ class BinProvider(BaseModel):
 
 class PipProvider(BinProvider):
     name: BinProviderName = 'pip'
-    BIN: BinName = 'pip'
+    INSTALLER_BIN: BinName = 'pip'
 
     @field_validator('PATH', mode='after')
     @classmethod
@@ -628,12 +628,12 @@ class PipProvider(BinProvider):
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.on_get_packages(bin_name)
-        if not self.BIN_ABSPATH:
-            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.BIN} not found in $PATH)')
+        if not self.INSTALLER_BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} install {packages}')
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
-        proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', '--upgrade', *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', '--upgrade', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
@@ -642,19 +642,19 @@ class PipProvider(BinProvider):
 
 class NpmProvider(BinProvider):
     name: BinProviderName = 'npm'
-    BIN: BinName = 'npm'
+    INSTALLER_BIN: BinName = 'npm'
 
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self):
-        if not self.BIN_ABSPATH:
+        if not self.INSTALLER_BIN_ABSPATH:
             return TypeAdapter(PATHStr).validate_python('')
         
         PATH = self.PATH
         
-        npm_global_dir = self.exec(bin_name=self.BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+        npm_global_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
         npm_bin_dirs = {npm_global_dir}
 
-        search_dir = Path(self.exec(bin_name=self.BIN_ABSPATH, cmd=['prefix']).stdout.strip())
+        search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())
         stop_if_reached = [str(Path('/')), str(Path('~').expanduser().absolute())]
         num_hops, max_hops = 0, 6
         while num_hops < max_hops and str(search_dir) not in stop_if_reached:
@@ -674,12 +674,12 @@ class NpmProvider(BinProvider):
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.on_get_packages(bin_name)
-        if not self.BIN_ABSPATH:
-            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.BIN} not found in $PATH)')
+        if not self.INSTALLER_BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
         
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} install {packages}')
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
-        proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
@@ -689,7 +689,7 @@ class NpmProvider(BinProvider):
 
 class AptProvider(BinProvider):
     name: BinProviderName = 'apt'
-    BIN: BinName = 'apt-get'
+    INSTALLER_BIN: BinName = 'apt-get'
     
     packages_provider: ProviderLookupDict = {
         **BinProvider.model_fields['packages_provider'].default,
@@ -698,7 +698,7 @@ class AptProvider(BinProvider):
 
     @model_validator(mode='after')
     def load_PATH_from_dpkg_install_location(self):
-        if not self.BIN_ABSPATH:
+        if not self.INSTALLER_BIN_ABSPATH:
             # package manager is not available on this host
             self.PATH = ''
             return self
@@ -716,10 +716,10 @@ class AptProvider(BinProvider):
     def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.on_get_packages(bin_name)
 
-        if not (self.BIN_ABSPATH and shutil.which('dpkg') and shutil.which('apt-get')):
-            raise Exception(f'{self.__class__.__name__}.BIN is not available on this host: {self.BIN}')
+        if not (self.INSTALLER_BIN_ABSPATH and shutil.which('dpkg') and shutil.which('apt-get')):
+            raise Exception(f'{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN} install {packages}')
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN} install {packages}')
         try:
             # if pyinfra is installed, use it            
             from pyinfra.operations import apt
@@ -737,8 +737,8 @@ class AptProvider(BinProvider):
                 _sudo=True,
             )
         except (ImportError, ModuleNotFoundError):
-            self.exec(bin_name=self.BIN_ABSPATH, cmd=['update', '-qq'])
-            proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', '-y', *packages])
+            self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['update', '-qq'])
+            proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', '-y', *packages])
         
             if proc.returncode != 0:
                 print(proc.stdout.strip())
@@ -747,18 +747,18 @@ class AptProvider(BinProvider):
 
 class BrewProvider(BinProvider):
     name: BinProviderName = 'brew'
-    BIN: BinName = 'brew'
+    INSTALLER_BIN: BinName = 'brew'
     PATH: PATHStr = '/opt/homebrew/bin:/usr/local/bin'
 
     @model_validator(mode='after')
     def load_PATH(self):
-        if not self.BIN_ABSPATH:
+        if not self.INSTALLER_BIN_ABSPATH:
             # brew is not availabe on this host
             self.PATH = ''
             return self
         
         PATH = self.PATH
-        brew_bin_dir = self.exec(bin_name=self.BIN_ABSPATH, cmd=['--prefix']).stdout.strip() + '/bin'
+        brew_bin_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['--prefix']).stdout.strip() + '/bin'
         if brew_bin_dir not in PATH:
             PATH = ':'.join([brew_bin_dir, *PATH.split(':')])
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
@@ -767,11 +767,11 @@ class BrewProvider(BinProvider):
     def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
         packages = packages or self.on_get_packages(bin_name)
 
-        if not self.BIN_ABSPATH:
-            raise Exception(f'{self.__class__.__name__}.BIN is not available on this host: {self.BIN}')
+        if not self.INSTALLER_BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} install {packages}')
-        proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', *packages])
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
@@ -788,7 +788,7 @@ if PYTHON_BIN_DIR not in DEFAULT_ENV_PATH:
 
 class EnvProvider(BinProvider):
     name: BinProviderName = 'env'
-    BIN: BinName = 'env'
+    INSTALLER_BIN: BinName = 'env'
     PATH: PATHStr = Field(default=DEFAULT_ENV_PATH)  # add dir containing python to $PATH
 
     abspath_provider: ProviderLookupDict = {

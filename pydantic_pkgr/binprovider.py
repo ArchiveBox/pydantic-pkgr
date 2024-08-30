@@ -642,7 +642,7 @@ class PipProvider(BinProvider):
 
         print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
-        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', '--upgrade', *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())

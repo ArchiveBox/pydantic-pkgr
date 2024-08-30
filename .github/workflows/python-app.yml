@@ -31,10 +31,6 @@ jobs:
         python-version: ${{ matrix.python_version }}
         cache: true
 
-    - name: Install pipx
-      run: |
-        apt-get update; apt-get install -y pipx; pipx ensurepath --global
-
     - name: Install dependencies
       run: |
         pdm sync --dev --fail-fast

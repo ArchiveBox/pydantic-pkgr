@@ -193,8 +193,11 @@ class InstallTest(unittest.TestCase):
         self.assertIn(binary_bin.loaded_abspath, flatten(binary_bin.loaded_abspaths.values()))
         self.assertIn(str(binary_bin.bin_dir), flatten(PATH.split(':') for PATH in binary_bin.loaded_bin_dirs.values()))
 
-        VERSION = SemVer.parse(subprocess.check_output(f'{binary.name} --version', shell=True, text=True))
-        ABSPATH = Path(shutil.which(binary.name)).absolute().resolve()
+        PATH = provider.PATH
+        bin_abspath = shutil.which(binary.name, path=PATH)
+
+        VERSION = SemVer.parse(subprocess.check_output(f'{bin_abspath} --version', shell=True, text=True))
+        ABSPATH = Path(bin_abspath).absolute().resolve()
 
         self.assertEqual(binary_bin.loaded_version, VERSION)
         self.assertIn(binary_bin.loaded_abspath, provider.get_abspaths(binary_bin.name))
@@ -226,7 +229,7 @@ class InstallTest(unittest.TestCase):
     def test_npm_provider(self):
         npmprovider = NpmProvider()
         # print(provider.PATH)
-        binary = Binary(name='single-file', binproviders=[npmprovider], overrides={'npm': {'packages': lambda: ['single-file-cli']}})
+        binary = Binary(name='tsx', binproviders=[npmprovider])
         self.install_with_binprovider(npmprovider, binary)
 
     def test_brew_provider(self):

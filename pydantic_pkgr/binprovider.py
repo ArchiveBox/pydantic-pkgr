@@ -562,10 +562,10 @@ class BinProvider(BaseModel):
         )
 
         installed_abspath = self.get_abspath(bin_name, overrides=overrides)
-        assert installed_abspath, f'Unable to find {bin_name} abspath after installing with {self.name}'
+        assert installed_abspath, f'{self.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={self.PATH}'
 
         installed_version = self.get_version(bin_name, overrides=overrides, abspath=installed_abspath)
-        assert installed_version, f'Unable to find {bin_name} version after installing with {self.name}'
+        assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath}'
         
         result = ShallowBinary(
             name=bin_name,

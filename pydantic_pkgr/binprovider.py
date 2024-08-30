@@ -497,7 +497,7 @@ class BinProvider(BaseModel):
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.name} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} {packages}')
+        # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} {packages}')
 
         # ... install logic here
 
@@ -647,7 +647,7 @@ class PipProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
+        # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
         proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', *packages])
         
@@ -722,7 +722,7 @@ class NpmProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
         
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
+        # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
         proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', '-g', *packages])
         
@@ -787,7 +787,7 @@ class AptProvider(BinProvider):
         if not (self.INSTALLER_BIN_ABSPATH and shutil.which('dpkg')):
             raise Exception(f'{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN} install {packages}')
+        # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN} install {packages}')
         try:
             # if pyinfra is installed, use it            
             from pyinfra.operations import apt
@@ -841,7 +841,7 @@ class BrewProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}')
 
-        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
+        # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['install', *packages])
         
         if proc.returncode != 0:

@@ -195,7 +195,7 @@ class InstallTest(unittest.TestCase):
 
         PATH = provider.PATH
         bin_abspath = shutil.which(binary.name, path=PATH)
-
+        assert bin_abspath
         VERSION = SemVer.parse(subprocess.check_output(f'{bin_abspath} --version', shell=True, text=True))
         ABSPATH = Path(bin_abspath).absolute().resolve()
 

@@ -31,6 +31,12 @@ jobs:
         python-version: ${{ matrix.python_version }}
         cache: true
 
+    - name: Install npx
+      uses: mikeal/npx@master
+
+    - name: Install pipx
+      uses: threeal/pipx-install-action@v1.0.0
+
     - name: Install dependencies
       run: |
         pdm sync --dev --fail-fast

@@ -629,6 +629,13 @@ class PipProvider(BinProvider):
             str(Path(site.getusersitepackages()).parent.parent.parent / 'bin'),               # /Users/squash/Library/Python/3.9/bin
             sysconfig.get_path('scripts'),                                                     # /opt/homebrew/bin
         }
+
+        if self.INSTALLER_BIN_ABSPATH and shutil.which(self.INSTALLER_BIN_ABSPATH):
+            proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['environment'])
+            if proc.returncode == 0:
+                PIPX_BIN_DIR = proc.stdout.strip().split('PIPX_BIN_DIR=')[-1].split('\n', 1)[0]
+                paths.add(PIPX_BIN_DIR)
+
         for bin_dir in paths:
             if bin_dir not in PATH:
                 PATH = ':'.join([*PATH.split(':'), bin_dir])

@@ -78,7 +78,7 @@ class TestBinProvider(unittest.TestCase):
         class TestRecord:
             called_abspath_custom = False
             called_version_custom = False
-            called_subdeps_custom = False
+            called_packages_custom = False
             called_install_custom = False
 
 
@@ -91,8 +91,8 @@ class TestBinProvider(unittest.TestCase):
             version_provider: ProviderLookupDict = {
                 '*': 'self.on_version_custom'
             }
-            subdeps_provider: ProviderLookupDict = {
-                '*': 'self.on_subdeps_custom'
+            packages_provider: ProviderLookupDict = {
+                '*': 'self.on_packages_custom'
             }
             install_provider: ProviderLookupDict = {
                 '*': 'does.not.exist'
@@ -108,8 +108,8 @@ class TestBinProvider(unittest.TestCase):
                 return bin_version(self.get_abspath(bin_name))
 
             @classmethod
-            def on_subdeps_custom(self, bin_name: str, **context):
-                TestRecord.called_subdeps_custom = True
+            def on_packages_custom(self, bin_name: str, **context):
+                TestRecord.called_packages_custom = True
 
             def on_install(self, bin_name: str, **context):
                 raise NotImplementedError('whattt')
@@ -121,7 +121,7 @@ class TestBinProvider(unittest.TestCase):
 
         self.assertFalse(TestRecord.called_abspath_custom)
         self.assertFalse(TestRecord.called_version_custom)
-        self.assertFalse(TestRecord.called_subdeps_custom)
+        self.assertFalse(TestRecord.called_packages_custom)
         self.assertFalse(TestRecord.called_install_custom)
 
         provider.get_abspath('doesnotexist')
@@ -130,8 +130,8 @@ class TestBinProvider(unittest.TestCase):
         provider.get_version('doesnotexist')
         self.assertTrue(TestRecord.called_version_custom)
 
-        provider.get_subdeps('doesnotexist')
-        self.assertTrue(TestRecord.called_subdeps_custom)
+        provider.get_packages('doesnotexist')
+        self.assertTrue(TestRecord.called_packages_custom)
 
         exc = None
         try:

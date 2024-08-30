@@ -12,7 +12,7 @@ from pathlib import Path
 from subprocess import run, PIPE, CompletedProcess
 
 from pydantic_core import core_schema, ValidationError
-from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, GetCoreSchemaHandler, ConfigDict, computed_field, field_validator, model_validator
 
 
 def validate_bin_provider_name(name: str) -> str:
@@ -252,17 +252,17 @@ class ShallowBinary(BaseModel):
         return run(cmd, stdout=PIPE, stderr=PIPE, text=True, cwd=str(cwd), **kwargs)
 
 
-def is_valid_install_string(pkgs_str: str) -> str:
+def is_valid_install_args(install_args: List[str]) -> List[str]:
     """Make sure a string is a valid install string for a package manager, e.g. 'yt-dlp ffmpeg'"""
-    assert pkgs_str
-    assert all(len(pkg) > 1 for pkg in pkgs_str.split(' '))
-    return pkgs_str
+    assert install_args
+    assert all(len(arg) for arg in install_args)
+    return install_args
 
 def is_valid_python_dotted_import(import_str: str) -> str:
     assert import_str and import_str.replace('.', '').replace('_', '').isalnum()
     return import_str
 
-InstallStr = Annotated[str, AfterValidator(is_valid_install_string)]
+InstallArgs = Annotated[List[str], AfterValidator(is_valid_install_args)]
 
 LazyImportStr = Annotated[str, AfterValidator(is_valid_python_dotted_import)]
 
@@ -270,7 +270,7 @@ ProviderHandler = Callable[..., Any] | Callable[[], Any]                        
 #ProviderHandlerStr = Annotated[str, AfterValidator(lambda s: s.startswith('self.'))]
 ProviderHandlerRef = LazyImportStr | ProviderHandler
 ProviderLookupDict = Dict[str, ProviderHandlerRef]
-ProviderType = Literal['abspath', 'version', 'subdeps', 'install']
+ProviderType = Literal['abspath', 'version', 'packages', 'install']
 
 
 # class Host(BaseModel):
@@ -293,7 +293,7 @@ class BinProvider(BaseModel):
     
     abspath_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
     version_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
-    subdeps_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_subdeps'}, exclude=True)
+    packages_provider: ProviderLookupDict = Field(default={'*': 'self.on_get_packages'}, exclude=True)
     install_provider: ProviderLookupDict = Field(default={'*': 'self.on_install'}, exclude=True)
 
     _abspath_cache: ClassVar = {}
@@ -306,6 +306,24 @@ class BinProvider(BaseModel):
             if meta.alias == item:
                 return getattr(self, field)
         return super().__getattr__(item)
+    
+    def __str__(self) -> str:
+        return f'{self.BIN.title()}Provider[{self.BIN_ABSPATH or self.BIN})]'
+    
+    @computed_field
+    @property
+    def BIN_ABSPATH(self) -> HostBinPath | None:
+        """Actual absolute path of the underlying package manager (e.g. /usr/local/bin/npm)"""
+        abspath = bin_abspath(self.BIN, PATH=None) or shutil.which(self.BIN)  # find self.BIN abspath using environment path
+        if not abspath:
+            # underlying package manager not found on this host, return None
+            return None
+        return TypeAdapter(HostBinPath).validate_python(abspath)
+    
+    @computed_field
+    @property
+    def is_valid(self) -> bool:
+        return bool(self.BIN_ABSPATH)
 
     # def provider_version(self) -> SemVer | None:
     #     """Version of the actual underlying package manager (e.g. pip v20.4.1)"""
@@ -328,10 +346,10 @@ class BinProvider(BaseModel):
 
     @validate_call
     def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', **kwargs) -> CompletedProcess:
-        bin_name = self.get_abspath(bin_name) if isinstance(bin_name, str) else bin_name
-        assert bin_name, f'Binary must have a reachable path, make sure to load_or_install() first: {bin_name}'
+        bin_abspath = self.get_abspath(bin_name) if isinstance(bin_name, str) else bin_name
+        assert bin_abspath, f'BinProvider {self.name} cannot execute bin_name {bin_name} because it could not find its abspath. (Did {self.__class__.__name__}.load_or_install({bin_name}) fail?)'
         assert Path(cwd).is_dir(), f'cwd must be a valid directory: {cwd}'
-        cmd = [str(bin_name), *(str(arg) for arg in cmd)]
+        cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
         return run(cmd, stdout=PIPE, stderr=PIPE, text=True, cwd=str(cwd), **kwargs)
 
     @field_validator('PATH', mode='after')
@@ -391,7 +409,7 @@ class BinProvider(BaseModel):
         providers_for_bin = {
             'abspath': self.abspath_provider.get(bin_name),
             'version': self.version_provider.get(bin_name),
-            'subdeps': self.subdeps_provider.get(bin_name),
+            'packages': self.packages_provider.get(bin_name),
             'install': self.install_provider.get(bin_name),
         }
         only_set_providers_for_bin = {k: v for k, v in providers_for_bin.items() if v is not None}
@@ -442,6 +460,7 @@ class BinProvider(BaseModel):
 
     def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
         # print(f'[*] {self.__class__.__name__}: Getting abspath for {bin_name}...')
+
         if not self.PATH:
             return None
         try:
@@ -462,18 +481,18 @@ class BinProvider(BaseModel):
             raise
             return None
 
-    def on_get_subdeps(self, bin_name: BinName, **context) -> InstallStr:
-        # print(f'[*] {self.__class__.__name__}: Getting subdependencies for {bin_name}')
-        # ... subdependency calculation logic here
-        return TypeAdapter(InstallStr).validate_python(bin_name)
+    def on_get_packages(self, bin_name: BinName, **context) -> InstallArgs:
+        # print(f'[*] {self.__class__.__name__}: Getting install command for {bin_name}')
+        # ... install command calculation logic here
+        return TypeAdapter(InstallArgs).validate_python([bin_name])
 
 
-    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
-        subdeps = subdeps or self.get_subdeps(bin_name)
-        if not shutil.which(self.BIN):
-            raise Exception(f'{self.__class__.__name__}.BIN is not avaialable on this host: {self.BIN}')
+    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
+        packages = packages or self.get_packages(bin_name)
+        if not self.BIN_ABSPATH:
+            raise Exception(f'{self.name} install method is not available on this host ({self.BIN} not found in $PATH)')
 
-        print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} {packages}')
         # ... install logic here
         assert True
 
@@ -513,42 +532,42 @@ class BinProvider(BaseModel):
         return result
 
     @validate_call
-    def get_subdeps(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> InstallStr:
-        subdeps = self.call_provider_for_action(
+    def get_packages(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> InstallArgs:
+        packages = self.call_provider_for_action(
             bin_name=bin_name,
-            provider_type='subdeps',
-            default_provider=self.on_get_subdeps,
+            provider_type='packages',
+            default_provider=self.on_get_packages,
             overrides=overrides,
         )
-        if not subdeps:
-            subdeps = bin_name
-        result = TypeAdapter(InstallStr).validate_python(subdeps)
+        if not packages:
+            packages = [bin_name]
+        result = TypeAdapter(InstallArgs).validate_python(packages)
         return result
 
     @validate_call
     def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> ShallowBinary | None:
-        subdeps = self.get_subdeps(bin_name, overrides=overrides)
+        packages = self.get_packages(bin_name, overrides=overrides)
         self.setup_PATH()
         self.call_provider_for_action(
             bin_name=bin_name,
             provider_type='install',
             default_provider=self.on_install,
             overrides=overrides,
-            subdeps=subdeps,
+            packages=packages,
         )
 
-        installed_abspath = self.get_abspath(bin_name)
+        installed_abspath = self.get_abspath(bin_name, overrides=overrides)
         assert installed_abspath, f'Unable to find {bin_name} abspath after installing with {self.name}'
 
-        installed_version = self.get_version(bin_name, abspath=installed_abspath)
+        installed_version = self.get_version(bin_name, overrides=overrides, abspath=installed_abspath)
         assert installed_version, f'Unable to find {bin_name} version after installing with {self.name}'
         
         result = ShallowBinary(
             name=bin_name,
-            loaded_provider=self.name,
-            loaded_abspath=installed_abspath,
-            loaded_version=installed_version,
-            providers_supported=[self],
+            provider=self.name,
+            abspath=installed_abspath,
+            version=installed_version,
+            providers=[self],
         )
         self._install_cache[bin_name] = result
         return result
@@ -576,10 +595,10 @@ class BinProvider(BaseModel):
 
         return ShallowBinary(
             name=bin_name,
-            loaded_provider=self.name,
-            loaded_abspath=installed_abspath,
-            loaded_version=installed_version,
-            providers_supported=[self],
+            provider=self.name,
+            abspath=installed_abspath,
+            version=installed_version,
+            providers=[self],
         )
 
     @validate_call
@@ -607,36 +626,40 @@ class PipProvider(BinProvider):
                 PATH = ':'.join([bin_dir, *PATH.split(':')])
         return TypeAdapter(PATHStr).validate_python(PATH)
 
-    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
-        subdeps = subdeps or self.on_get_subdeps(bin_name)
-        if not shutil.which(self.BIN):
-            raise Exception(f'{self.__class__.__name__}.BIN is not avaialable on this host: {self.BIN}')
+    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
+        packages = packages or self.on_get_packages(bin_name)
+        if not self.BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.BIN} not found in $PATH)')
 
-        print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} install {packages}')
         
-        proc = self.exec(bin_name=self.BIN, cmd=['install', '--upgrade', *subdeps.split(' ')])
+        proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', '--upgrade', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
             print(proc.stderr.strip())
-            raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
+            raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
 
 class NpmProvider(BinProvider):
     name: BinProviderName = 'npm'
     BIN: BinName = 'npm'
 
-    @field_validator('PATH', mode='after')
-    @classmethod
-    def load_PATH(cls, PATH: PATHStr) -> PATHStr:
-        npm_global_dir = self.exec(bin_name=self.BIN, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+    @model_validator(mode='after')
+    def load_PATH_from_npm_prefix(self):
+        if not self.BIN_ABSPATH:
+            return TypeAdapter(PATHStr).validate_python('')
+        
+        PATH = self.PATH
+        
+        npm_global_dir = self.exec(bin_name=self.BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
         npm_bin_dirs = {npm_global_dir}
 
-        search_dir = Path(self.exec(bin_name=self.BIN, cmd=['prefix']).stdout.strip())
+        search_dir = Path(self.exec(bin_name=self.BIN_ABSPATH, cmd=['prefix']).stdout.strip())
         stop_if_reached = [str(Path('/')), str(Path('~').expanduser().absolute())]
         num_hops, max_hops = 0, 6
         while num_hops < max_hops and str(search_dir) not in stop_if_reached:
             try:
-                npm_bin_dirs.add(search_dir.glob('node_modules/.bin')[0])
+                npm_bin_dirs.add(list(search_dir.glob('node_modules/.bin'))[0])
                 break
             except (IndexError, OSError, Exception):
                 pass
@@ -644,50 +667,59 @@ class NpmProvider(BinProvider):
             num_hops += 1
         
         for bin_dir in npm_bin_dirs:
-            if bin_dir not in PATH:
-                PATH = ':'.join([bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_python(PATH)
+            if str(bin_dir) not in PATH:
+                PATH = ':'.join([str(bin_dir), *PATH.split(':')])
+        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
+        return self
 
-    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
-        subdeps = subdeps or self.on_get_subdeps(bin_name)
-        if not shutil.which(self.BIN):
-            raise Exception(f'{self.__class__.__name__}.BIN is not avaialable on this host: {self.BIN}')
-
-        print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
-        proc = self.exec(bin_name=self.BIN, cmd=['install', '-g', *subdeps.split(' ')])
+    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
+        packages = packages or self.on_get_packages(bin_name)
+        if not self.BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.BIN} not found in $PATH)')
+        
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} install {packages}')
+        
+        proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
             print(proc.stderr.strip())
-            raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
+            raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
 
 
 class AptProvider(BinProvider):
     name: BinProviderName = 'apt'
     BIN: BinName = 'apt-get'
     
-    subdeps_provider: ProviderLookupDict = {
-        **BinProvider.__fields__['subdeps_provider'].default,
-        'yt-dlp': lambda: 'yt-dlp ffmpeg',
+    packages_provider: ProviderLookupDict = {
+        **BinProvider.model_fields['packages_provider'].default,
+        'yt-dlp': lambda: ['yt-dlp', 'ffmpeg'],   # always install ffmpeg when installing yt-dlp
     }
 
-    @field_validator('PATH', mode='after')
-    @classmethod
-    def load_PATH(cls, PATH: PATHStr) -> PATHStr:
+    @model_validator(mode='after')
+    def load_PATH_from_dpkg_install_location(self):
+        if not self.BIN_ABSPATH:
+            # package manager is not available on this host
+            self.PATH = ''
+            return self
+
+        PATH = self.PATH
         dpkg_install_dirs = self.exec(bin_name='dpkg', cmd=['-L', 'bash']).stdout.strip().split('\n')
         dpkg_bin_dirs = [path for path in dpkg_install_dirs if path.endswith('/bin')]
         for bin_dir in dpkg_bin_dirs:
-            if bin_dir not in PATH:
-                PATH = ':'.join([bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_python(PATH)
+            if str(bin_dir) not in PATH:
+                PATH = ':'.join([str(bin_dir), *PATH.split(':')])
+        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
+        return self
 
 
-    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
-        subdeps = subdeps or self.on_get_subdeps(bin_name)
-        if not (shutil.which(self.BIN) and shutil.which('dpkg') and shutil.which('apt-get')):
-            raise Exception(f'{self.__class__.__name__}.BIN is not avaialable on this host: {self.BIN}')
+    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
+        packages = packages or self.on_get_packages(bin_name)
 
-        print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
+        if not (self.BIN_ABSPATH and shutil.which('dpkg') and shutil.which('apt-get')):
+            raise Exception(f'{self.__class__.__name__}.BIN is not available on this host: {self.BIN}')
+
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN} install {packages}')
         try:
             # if pyinfra is installed, use it            
             from pyinfra.operations import apt
@@ -700,45 +732,51 @@ class AptProvider(BinProvider):
 
             apt.packages(
                 name=f"Ensure {bin_name} is installed",
-                packages=subdeps.split(' '),
+                packages=packages.split(' '),
                 update=True,
                 _sudo=True,
             )
         except (ImportError, ModuleNotFoundError):
-            self.exec(bin_name='apt-get', cmd=['update', '-qq'])
-            proc = self.exec(bin_name='apt-get', cmd=['install', '-y', *subdeps.split(' ')])
+            self.exec(bin_name=self.BIN_ABSPATH, cmd=['update', '-qq'])
+            proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', '-y', *packages])
         
             if proc.returncode != 0:
                 print(proc.stdout.strip())
                 print(proc.stderr.strip())
-                raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
+                raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {packages}: {packages}')
 
 class BrewProvider(BinProvider):
     name: BinProviderName = 'brew'
     BIN: BinName = 'brew'
     PATH: PATHStr = '/opt/homebrew/bin:/usr/local/bin'
 
-    @field_validator('PATH', mode='after')
-    @classmethod
-    def load_PATH(cls, PATH: PATHStr) -> PATHStr:
-        brew_bin_dir = self.exec(bin_name=self.BIN, cmd=['--prefix']).stdout.strip() + '/bin'
+    @model_validator(mode='after')
+    def load_PATH(self):
+        if not self.BIN_ABSPATH:
+            # brew is not availabe on this host
+            self.PATH = ''
+            return self
+        
+        PATH = self.PATH
+        brew_bin_dir = self.exec(bin_name=self.BIN_ABSPATH, cmd=['--prefix']).stdout.strip() + '/bin'
         if brew_bin_dir not in PATH:
             PATH = ':'.join([brew_bin_dir, *PATH.split(':')])
-        return TypeAdapter(PATHStr).validate_python(PATH)
+        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
+        return self
 
-    def on_install(self, bin_name: str, subdeps: Optional[InstallStr]=None, **context):
-        subdeps = subdeps or self.on_get_subdeps(bin_name)
-        
-        if not shutil.which(self.BIN):
-            raise Exception(f'{self.__class__.__name__}.BIN is not avaialable on this host: {self.BIN}')
+    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context):
+        packages = packages or self.on_get_packages(bin_name)
 
-        print(f'[*] {self.__class__.__name__}: Installing subdependencies for {bin_name} ({subdeps})')
-        proc = self.exec(bin_name=self.BIN, cmd=['install', *subdeps.split(' ')])
+        if not self.BIN_ABSPATH:
+            raise Exception(f'{self.__class__.__name__}.BIN is not available on this host: {self.BIN}')
+
+        print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.BIN_ABSPATH} install {packages}')
+        proc = self.exec(bin_name=self.BIN_ABSPATH, cmd=['install', *packages])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
             print(proc.stderr.strip())
-            raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {subdeps}: {subdeps}')
+            raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {packages}: {packages}')
 
 
 DEFAULT_ENV_PATH = os.environ.get('PATH', '/bin')
@@ -794,6 +832,6 @@ class EnvProvider(BinProvider):
     #     import django
     #     return '{}.{}.{} {} ({})'.format(*django.VERSION)
 
-    def on_install(self, bin_name: BinName, subdeps: Optional[InstallStr]=None, **context):
+    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context):
         """The env provider is ready-only and does not install any packages, so this is a no-op"""
         pass

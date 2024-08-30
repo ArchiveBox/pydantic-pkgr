@@ -13,7 +13,7 @@ from .binprovider import (
     BrewProvider,
     PipProvider,
     NpmProvider,
-    InstallStr,
+    InstallArgs,
     ShallowBinary,
     bin_version,
 )

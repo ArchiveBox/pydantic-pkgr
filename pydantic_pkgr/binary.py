@@ -121,6 +121,17 @@ class Binary(ShallowBinary):
             provider_name: ':'.join([str(bin_abspath.parent) for bin_abspath in bin_abspaths])
             for provider_name, bin_abspaths in self.loaded_abspaths.items()
         }
+    
+    @computed_field
+    @property
+    def PROVIDER(self) -> Optional[BinProvider]:
+        if not self.loaded_provider:
+            return None
+        for provider in self.providers_supported:
+            if provider.name == self.loaded_provider:
+                return provider
+        raise Exception(f'Binary {self.name} was loaded using {self.loaded_provider} BinProvider, but {self.loaded_provider} was not found in self.providers_supported={self.providers_supported}')
+
 
     @validate_call
     def install(self) -> Self:
@@ -191,8 +202,8 @@ class Binary(ShallowBinary):
 
 class SystemPythonHelpers:
     @staticmethod
-    def get_subdeps() -> str:
-        return 'python3 python3-minimal python3-pip python3-virtualenv'
+    def get_packages() -> str:
+        return ['python3', 'python3-minimal', 'python3-pip', 'python3-virtualenv']
 
     @staticmethod
     def get_abspath() -> str:
@@ -232,8 +243,8 @@ class DjangoHelpers:
 
 class YtdlpHelpers:
     @staticmethod
-    def get_ytdlp_subdeps() -> str:
-        return 'yt-dlp ffmpeg'
+    def get_ytdlp_packages() -> str:
+        return ['yt-dlp', 'ffmpeg']
 
     @staticmethod
     def get_ytdlp_version() -> str:
@@ -249,7 +260,7 @@ class PythonBinary(Binary):
 
     providers_supported: List[BinProvider] = [
         EnvProvider(
-            subdeps_provider={'python': 'plugantic.binaries.SystemPythonHelpers.get_subdeps'},
+            packages_provider={'python': 'plugantic.binaries.SystemPythonHelpers.get_packages'},
             abspath_provider={'python': 'plugantic.binaries.SystemPythonHelpers.get_abspath'},
             version_provider={'python': 'plugantic.binaries.SystemPythonHelpers.get_version'},
         ),
@@ -282,8 +293,8 @@ class YtdlpBinary(Binary):
     providers_supported: List[BinProvider] = [
         # EnvProvider(),
         PipProvider(version_provider={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_version'}),
-        BrewProvider(subdeps_provider={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_subdeps'}),
-        # AptProvider(subdeps_provider={'yt-dlp': lambda: 'yt-dlp ffmpeg'}),
+        BrewProvider(packages_provider={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_packages'}),
+        # AptProvider(packages_provider={'yt-dlp': lambda: ['yt-dlp', 'ffmpeg']}),
     ]
 
 

@@ -126,7 +126,7 @@ This type represents a "provider of binaries", e.g. a package manager like `apt`
 - `get_abspaths(bin_name: str) -> [Path('/absolute/path/to/bin'), Path('/other/paths/to/bin'), ...]`
 - `get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')`
 - `get_version(bin_name: str) -> SemVer('1.0.0')`
-- `get_subdeps(bin_name: str) -> InstallStr('somepackage some-extras')`
+- `get_packages(bin_name: str) -> InstallArgs(['somepackage', 'some-extras'])`
 - `@PATH -> PATHStr('/usr/local/bin:/usr/bin:/bin:...')`
 
 ```python
@@ -181,9 +181,9 @@ class YtdlpBinary(Binary):
     
     # customize installed package names for specific package managers
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
-        'pip': {'subdeps': lambda: 'yt-dlp[default,curl-cffi]'}},
-        'apt': {'subdeps': lambda: 'yt-dlp ffmpeg'}},
-        'brew': {'subdeps': 'some.other.module.get_brew_subdeps'}},  # also accepts dotted import path to function
+        'pip': {'packages': lambda: 'yt-dlp[default,curl-cffi]'}},
+        'apt': {'packages': lambda: 'yt-dlp ffmpeg'}},
+        'brew': {'packages': 'some.other.module.get_brew_packages'}},  # also accepts dotted import path to function
     }
 
 ytdlp = YtdlpBinary().load_or_install()
@@ -210,7 +210,7 @@ class DockerBinary(Binary):
         },
         'apt': {
             # example: vary installed package name based on your CPU architecture
-            'subdeps': lambda: {
+            'packages': lambda: {
                 'amd64': 'docker',
                 'armv7l': 'docker-ce',
                 'arm64': 'docker-ce',
@@ -435,14 +435,14 @@ class CargoProvider(BinProvider):
             sys.path.append('~/.cargo/bin')
 
     def on_install(self, bin_name: BinName, **context):
-        subdeps = self.on_get_subdeps(bin_name)
-        installer_process = run(['cargo', 'install', *subdeps.split(' ')], stdout=PIPE, stderr=PIPE)
+        packages = self.on_get_packages(bin_name)
+        installer_process = run(['cargo', 'install', *packages.split(' ')], stdout=PIPE, stderr=PIPE)
         assert installer_process.returncode == 0
 
-    def on_get_subdeps(self, bin_name: BinName, **context) -> InstallStr:
+    def on_get_packages(self, bin_name: BinName, **context) -> InstallArgs:
         # optionally remap bin_names to strings passed to installer 
-        # e.g. 'yt-dlp' -> 'yt-dlp ffmpeg libcffi libaac'
-        return bin_name
+        # e.g. 'yt-dlp' -> ['yt-dlp, 'ffmpeg', 'libcffi', 'libaac']
+        return [bin_name]
 
     def on_get_abspath(self, bin_name: BinName, **context) -> Path | None:
         self.on_setup_paths()

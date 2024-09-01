@@ -123,12 +123,16 @@ pip install pydantic-pkgr
 This type represents a "provider of binaries", e.g. a package manager like `apt`/`pip`/`npm`, or `env` (which finds binaries in your `$PATH`).
 
 `BinProvider`s implement the following interface:
-- `load(bin_name: str)`, `install(bin_name: str)`, `load_or_install(bin_name: str)` `->` `Binary`
-- `get_abspaths(bin_name: str) -> [Path('/absolute/path/to/bin'), Path('/other/paths/to/bin'), ...]`
+* `.BIN -> /opt/homebrew/bin/brew`  # provider's pkg manager binary location
+* `.PATH -> PATHStr('/opt/homebrew/bin:/usr/local/bin:...')`  # where provider stores bins
+* `get_packages(bin_name: str) -> InstallArgs(['curl', 'libcurl4', '...])` # find pkg dependencies for a bin
+- `install(bin_name: str)`  # install a bin using binprovider to install needed packages
+- `load(bin_name: str)`,   # find an existing installed binary
+- `load_or_install(bin_name: str)` `->` `Binary`, 
+- `get_version(bin_name: str) -> SemVer('1.0.0')`  # get currently installed version
 - `get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')`
-- `get_version(bin_name: str) -> SemVer('1.0.0')`
-- `get_packages(bin_name: str) -> InstallArgs(['somepackage', 'some-extras'])`
-- `@PATH -> PATHStr('/usr/local/bin:/usr/bin:/bin:...')`
+* `get_abspaths(bin_name: str) -> [Path('/opt/homebrew/bin/curl'), Path('/other/paths/to/curl'), ...]`
+
 
 ```python
 import platform

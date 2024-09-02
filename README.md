@@ -123,15 +123,15 @@ pip install pydantic-pkgr
 This type represents a "provider of binaries", e.g. a package manager like `apt`/`pip`/`npm`, or `env` (which finds binaries in your `$PATH`).
 
 `BinProvider`s implement the following interface:
-* `.BIN -> /opt/homebrew/bin/brew`  # provider's pkg manager binary location
-* `.PATH -> PATHStr('/opt/homebrew/bin:/usr/local/bin:...')`  # where provider stores bins
-* `get_packages(bin_name: str) -> InstallArgs(['curl', 'libcurl4', '...])` # find pkg dependencies for a bin
-- `install(bin_name: str)`  # install a bin using binprovider to install needed packages
-- `load(bin_name: str)`,   # find an existing installed binary
-- `load_or_install(bin_name: str)` `->` `Binary`, 
-- `get_version(bin_name: str) -> SemVer('1.0.0')`  # get currently installed version
-- `get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')`
-* `get_abspaths(bin_name: str) -> [Path('/opt/homebrew/bin/curl'), Path('/other/paths/to/curl'), ...]`
+* `.INSTALLER_BIN -> /opt/homebrew/bin/brew`  provider's pkg manager location
+* `.PATH -> PATHStr('/opt/homebrew/bin:/usr/local/bin:...')`  where provider stores bins
+* `get_packages(bin_name: str) -> InstallArgs(['curl', 'libcurl4', '...])` find pkg dependencies for a bin
+- `install(bin_name: str)` install a bin using binprovider to install needed packages
+- `load(bin_name: str)`  find an existing installed binary
+- `load_or_install(bin_name: str)` `->` `Binary` find existing / install if needed
+- `get_version(bin_name: str) -> SemVer('1.0.0')`  get currently installed version
+- `get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')` get installed bin abspath
+* `get_abspaths(bin_name: str) -> [Path('/opt/homebrew/bin/curl'), Path('/other/paths/to/curl'), ...]` get all matching bins found
 
 
 ```python
@@ -141,14 +141,14 @@ from pydantic_pkgr import EnvProvider, PipProvider, AptProvider, BrewProvider
 
 ### Example: Finding an existing install of bash using the system $PATH environment
 env = EnvProvider()
-bash = env.load(bin_name='bash')
+bash = env.load(bin_name='bash')      # Binary('bash', provider=env)
 print(bash.abspath)                   # Path('/opt/homebrew/bin/bash')
 print(bash.version)                   # SemVer('5.2.26')
 bash.exec(['-c', 'echo hi'])          # hi
 
 ### Example: Installing curl using the apt package manager
 apt = AptProvider()
-curl = apt.install(bin_name='curl')
+curl = apt.install(bin_name='curl')   # Binary('curl', provider=apt)
 print(curl.abspath)                   # Path('/usr/bin/curl')
 print(curl.version)                   # SemVer('8.4.0')
 curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
@@ -157,7 +157,7 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 pip = PipProvider(
     abspath_handler={'*': lambda bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
 )
-django_bin = pip.load_or_install(bin_name='django')
+django_bin = pip.load_or_install('django') # Binary('django', provider=pip)
 print(django_bin.abspath)             # Path('/usr/lib/python3.10/site-packages/django/__init__.py')
 print(django_bin.version)             # SemVer('5.0.2')
 ```

@@ -39,13 +39,13 @@ DEFAULT_PROVIDER = EnvProvider()
 
 
 class Binary(ShallowBinary):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True, validate_defaults=True, validate_assignment=True, from_attributes=True, revalidate_instances='always')
 
     name: BinName = ''
     description: str = ''
 
-    binproviders_supported: List[InstanceOf[BinProvider]] = Field(default=[DEFAULT_PROVIDER], alias='binproviders')
-    provider_overrides: Dict[BinProviderName, ProviderLookupDict] = Field(default={}, alias='overrides')
+    binproviders_supported: List[InstanceOf[BinProvider]] = Field(default_factory=lambda : [DEFAULT_PROVIDER], alias='binproviders')
+    provider_overrides: Dict[BinProviderName, ProviderLookupDict] = Field(default_factory=dict, alias='overrides')
     
     loaded_binprovider: Optional[InstanceOf[BinProvider]] = Field(default=None, alias='binprovider')
     loaded_abspath: Optional[HostBinPath] = Field(default=None, alias='abspath')
@@ -60,14 +60,12 @@ class Binary(ShallowBinary):
     @model_validator(mode='after')
     def validate(self):
         # assert self.name, 'Binary.name must not be empty'
-        self.description = self.description or self.name
+        # self.description = self.description or self.name
         
         assert self.binproviders_supported, f'No providers were given for package {self.name}'
 
         # pull in any overrides from the binproviders
         for binprovider in self.binproviders_supported:
-            if isinstance(binprovider, str):
-                continue
             overrides_by_handler = binprovider.get_handlers_for_bin(self.name)
             if overrides_by_handler:
                 self.provider_overrides[binprovider.name] = {
@@ -139,15 +137,18 @@ class Binary(ShallowBinary):
         outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in self.binproviders_supported)}] were able to install binary: {self.name}')
         inner_exc = Exception('No providers were available')
         for binprovider in self.binproviders_supported:
+            if not binprovider.INSTALLER_BIN_ABSPATH:
+                continue
             try:
                 installed_bin = binprovider.install(self.name, overrides=self.provider_overrides.get(binprovider.name))
-                if installed_bin:
+                if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('INSTALLED', self.name, installed_bin)
                     return self.__class__.model_validate({
                         **self.model_dump(),
                         **installed_bin.model_dump(exclude=('binproviders_supported',)),
                         'loaded_binprovider': binprovider,
                         'binproviders_supported': self.binproviders_supported,
+                        'provider_overrides': self.provider_overrides,
                     })
             except Exception as err:
                 # print(err)
@@ -167,15 +168,18 @@ class Binary(ShallowBinary):
         outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in self.binproviders_supported)}] were able to load binary: {self.name}')
         inner_exc = Exception('No providers were available')
         for binprovider in self.binproviders_supported:
+            # if not binprovider.INSTALLER_BIN_ABSPATH:
+            #     continue
             try:
                 installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name))
-                if installed_bin.loaded_abspath:
+                if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED', binprovider, self.name, installed_bin)
                     return self.__class__.model_validate({
                         **self.model_dump(),
                         **installed_bin.model_dump(exclude=('binproviders_supported',)),
                         'loaded_binprovider': binprovider,
                         'binproviders_supported': self.binproviders_supported,
+                        'provider_overrides': self.provider_overrides,
                     })
                 else:
                     continue
@@ -197,124 +201,130 @@ class Binary(ShallowBinary):
         outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in self.binproviders_supported)}] were able to find or install binary: {self.name}')
         inner_exc = Exception('No providers were available')
         for binprovider in self.binproviders_supported:
+            # if not binprovider.INSTALLER_BIN_ABSPATH:
+            #     continue
             try:
                 installed_bin = binprovider.load_or_install(self.name, overrides=self.provider_overrides.get(binprovider.name), cache=cache)
-                if installed_bin:
+                if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
                     return self.__class__.model_validate({
                         **self.model_dump(),
                         **installed_bin.model_dump(exclude=('binproviders_supported',)),
                         'loaded_binprovider': binprovider,
                         'binproviders_supported': self.binproviders_supported,
+                        'provider_overrides': self.provider_overrides,
                     })
+                else:
+                    continue
             except Exception as err:
                 # print(err)
                 inner_exc = err
+                continue
         raise outer_exc from inner_exc
         
 
 
-class SystemPythonHelpers:
-    @staticmethod
-    def get_packages() -> str:
-        return ['python3', 'python3-minimal', 'python3-pip', 'python3-virtualenv']
+# class SystemPythonHelpers:
+#     @staticmethod
+#     def get_packages() -> str:
+#         return ['python3', 'python3-minimal', 'python3-pip', 'python3-virtualenv']
 
-    @staticmethod
-    def get_abspath() -> str:
-        return sys.executable
+#     @staticmethod
+#     def get_abspath() -> str:
+#         return sys.executable
     
-    @staticmethod
-    def get_version() -> str:
-        return '{}.{}.{}'.format(*sys.version_info[:3])
+#     @staticmethod
+#     def get_version() -> str:
+#         return '{}.{}.{}'.format(*sys.version_info[:3])
 
 
-class SqliteHelpers:
-    @staticmethod
-    def get_abspath() -> Path:
-        import sqlite3
-        importlib.reload(sqlite3)
-        return Path(inspect.getfile(sqlite3))
+# class SqliteHelpers:
+#     @staticmethod
+#     def get_abspath() -> Path:
+#         import sqlite3
+#         importlib.reload(sqlite3)
+#         return Path(inspect.getfile(sqlite3))
 
-    @staticmethod
-    def get_version() -> SemVer:
-        import sqlite3
-        importlib.reload(sqlite3)
-        version = sqlite3.version
-        assert version
-        return SemVer(version)
+#     @staticmethod
+#     def get_version() -> SemVer:
+#         import sqlite3
+#         importlib.reload(sqlite3)
+#         version = sqlite3.version
+#         assert version
+#         return SemVer(version)
 
-class DjangoHelpers:
-    @staticmethod
-    def get_django_abspath() -> str:
-        import django
-        return inspect.getfile(django)
+# class DjangoHelpers:
+#     @staticmethod
+#     def get_django_abspath() -> str:
+#         import django
+#         return inspect.getfile(django)
     
 
-    @staticmethod
-    def get_django_version() -> str:
-        import django
-        return '{}.{}.{} {} ({})'.format(*django.VERSION)
+#     @staticmethod
+#     def get_django_version() -> str:
+#         import django
+#         return '{}.{}.{} {} ({})'.format(*django.VERSION)
 
-class YtdlpHelpers:
-    @staticmethod
-    def get_ytdlp_packages() -> str:
-        return ['yt-dlp', 'ffmpeg']
+# class YtdlpHelpers:
+#     @staticmethod
+#     def get_ytdlp_packages() -> str:
+#         return ['yt-dlp', 'ffmpeg']
 
-    @staticmethod
-    def get_ytdlp_version() -> str:
-        import yt_dlp
-        importlib.reload(yt_dlp)
+#     @staticmethod
+#     def get_ytdlp_version() -> str:
+#         import yt_dlp
+#         importlib.reload(yt_dlp)
 
-        version = yt_dlp.version.__version__
-        assert version
-        return version
+#         version = yt_dlp.version.__version__
+#         assert version
+#         return version
 
-class PythonBinary(Binary):
-    name: BinName = 'python'
+# class PythonBinary(Binary):
+#     name: BinName = 'python'
 
-    binproviders_supported: List[InstanceOf[BinProvider]] = [
-        EnvProvider(
-            packages_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_packages'},
-            abspath_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_abspath'},
-            version_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_version'},
-        ),
-    ]
+#     binproviders_supported: List[InstanceOf[BinProvider]] = [
+#         EnvProvider(
+#             packages_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_packages'},
+#             abspath_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_abspath'},
+#             version_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_version'},
+#         ),
+#     ]
 
-class SqliteBinary(Binary):
-    name: BinName = 'sqlite'
-    binproviders_supported: List[InstanceOf[BinProvider]] = [
-        EnvProvider(
-            version_handler={'sqlite': 'plugantic.binaries.SqliteHelpers.get_version'},
-            abspath_handler={'sqlite': 'plugantic.binaries.SqliteHelpers.get_abspath'},
-        ),
-    ]
+# class SqliteBinary(Binary):
+#     name: BinName = 'sqlite'
+#     binproviders_supported: List[InstanceOf[BinProvider]] = [
+#         EnvProvider(
+#             version_handler={'sqlite': 'plugantic.binaries.SqliteHelpers.get_version'},
+#             abspath_handler={'sqlite': 'plugantic.binaries.SqliteHelpers.get_abspath'},
+#         ),
+#     ]
 
-class DjangoBinary(Binary):
-    name: BinName = 'django'
-    binproviders_supported: List[InstanceOf[BinProvider]] = [
-        EnvProvider(
-            abspath_handler={'django': 'plugantic.binaries.DjangoHelpers.get_django_abspath'},
-            version_handler={'django': 'plugantic.binaries.DjangoHelpers.get_django_version'},
-        ),
-    ]
-
-
+# class DjangoBinary(Binary):
+#     name: BinName = 'django'
+#     binproviders_supported: List[InstanceOf[BinProvider]] = [
+#         EnvProvider(
+#             abspath_handler={'django': 'plugantic.binaries.DjangoHelpers.get_django_abspath'},
+#             version_handler={'django': 'plugantic.binaries.DjangoHelpers.get_django_version'},
+#         ),
+#     ]
 
 
 
-class YtdlpBinary(Binary):
-    name: BinName = 'yt-dlp'
-    binproviders_supported: List[InstanceOf[BinProvider]] = [
-        # EnvProvider(),
-        PipProvider(version_handler={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_version'}),
-        BrewProvider(packages_handler={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_packages'}),
-        # AptProvider(packages_handler={'yt-dlp': lambda: ['yt-dlp', 'ffmpeg']}),
-    ]
 
 
-class WgetBinary(Binary):
-    name: BinName = 'wget'
-    binproviders_supported: List[InstanceOf[BinProvider]] = [EnvProvider(), AptProvider()]
+# class YtdlpBinary(Binary):
+#     name: BinName = 'yt-dlp'
+#     binproviders_supported: List[InstanceOf[BinProvider]] = [
+#         # EnvProvider(),
+#         PipProvider(version_handler={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_version'}),
+#         BrewProvider(packages_handler={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_packages'}),
+#         # AptProvider(packages_handler={'yt-dlp': lambda: ['yt-dlp', 'ffmpeg']}),
+#     ]
+
+
+# class WgetBinary(Binary):
+#     name: BinName = 'wget'
+#     binproviders_supported: List[InstanceOf[BinProvider]] = [EnvProvider(), AptProvider()]
 
 
 # if __name__ == '__main__':

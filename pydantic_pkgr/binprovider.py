@@ -4,6 +4,7 @@ import shutil
 import operator
 import site
 import sysconfig
+from functools import lru_cache
 
 from typing import Callable, Iterable, Any, Optional, Type, List, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
 from pathlib import Path
@@ -92,6 +93,8 @@ HostAbsPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)]
 HostBinPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)] # removed: AfterValidator(path_is_executable)
 # not all bins need to be executable to be bins, some are scripts
 
+
+@lru_cache(maxsize=1000)
 @validate_call
 def bin_abspath(bin_path_or_name: str | BinName | Path, PATH: PATHStr | None=None) -> HostBinPath | None:
     assert bin_path_or_name
@@ -168,13 +171,13 @@ class ShallowBinary(BaseModel):
     Shallow version of Binary used as a return type for BinProvider methods (e.g. load_or_install()).
     (doesn't implement full Binary interface, but can be used to populate a full loaded Binary instance)
     """
-    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True)
+    model_config = ConfigDict(extra='allow', populate_by_name=True, validate_defaults=True, validate_assignment=False, from_attributes=True)
 
     name: BinName = ''
     description: str = ''
 
-    binproviders_supported: List[InstanceOf['BinProvider']] = Field(default=[], alias='binproviders')
-    provider_overrides: Dict[BinProviderName, 'ProviderLookupDict'] = Field(default={}, alias='overrides')
+    binproviders_supported: List[InstanceOf['BinProvider']] = Field(default_factory=list, alias='binproviders')
+    provider_overrides: Dict[BinProviderName, 'ProviderLookupDict'] = Field(default_factory=dict, alias='overrides')
 
     loaded_binprovider: InstanceOf['BinProvider'] = Field(alias='binprovider')
     loaded_abspath: HostBinPath = Field(alias='abspath')
@@ -290,7 +293,7 @@ HandlerType = Literal['abspath', 'version', 'packages', 'install']
 
 
 class BinProvider(BaseModel):
-    model_config = ConfigDict(extra='ignore', populate_by_name=True, validate_defaults=True, revalidate_instances='always')
+    model_config = ConfigDict(extra='allow', populate_by_name=True, validate_defaults=True, validate_assignment=False, from_attributes=True, revalidate_instances='always')
     name: BinProviderName = ''
 
     PATH: PATHStr = Field(default=str(Path(sys.executable).parent))        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
@@ -616,8 +619,8 @@ class BinProvider(BaseModel):
         return installed
 
 class PipProvider(BinProvider):
-    name: BinProviderName = 'pipx'
-    INSTALLER_BIN: BinName = 'pipx'
+    name: BinProviderName = 'pip'
+    INSTALLER_BIN: BinName = 'pip'
     PATH: PATHStr = sysconfig.get_path('scripts')  # /opt/homebrew/bin
 
     @model_validator(mode='after')
@@ -759,16 +762,13 @@ class AptProvider(BinProvider):
 
     PATH: PATHStr = ''
     
-    packages_handler: ProviderLookupDict = {
-        **BinProvider.model_fields['packages_handler'].default,
-        'yt-dlp': lambda: ['yt-dlp', 'ffmpeg'],   # always install ffmpeg when installing yt-dlp
-    }
 
     @model_validator(mode='after')
     def load_PATH_from_dpkg_install_location(self):
-        if not self.INSTALLER_BIN_ABSPATH or not shutil.which('dpkg'):
+        if (not self.INSTALLER_BIN_ABSPATH) or not shutil.which('dpkg') or not self.is_valid:
             # package manager is not available on this host
-            self.PATH = ''
+            # self.PATH: PATHStr = ''
+            # self.INSTALLER_BIN_ABSPATH = None
             return self
 
         PATH = self.PATH
@@ -825,7 +825,7 @@ class BrewProvider(BinProvider):
     def load_PATH(self):
         if not self.INSTALLER_BIN_ABSPATH:
             # brew is not availabe on this host
-            self.PATH = ''
+            self.PATH: PATHStr = ''
             return self
         
         PATH = self.PATH
@@ -861,7 +861,7 @@ if PYTHON_BIN_DIR not in DEFAULT_ENV_PATH:
 
 class EnvProvider(BinProvider):
     name: BinProviderName = 'env'
-    INSTALLER_BIN: BinName = 'env'
+    INSTALLER_BIN: BinName = 'which'
     PATH: PATHStr = DEFAULT_ENV_PATH     # add dir containing python to $PATH
 
     abspath_handler: ProviderLookupDict = {

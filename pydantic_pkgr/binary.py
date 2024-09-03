@@ -66,6 +66,8 @@ class Binary(ShallowBinary):
 
         # pull in any overrides from the binproviders
         for binprovider in self.binproviders_supported:
+            if isinstance(binprovider, str):
+                continue
             overrides_by_handler = binprovider.get_handlers_for_bin(self.name)
             if overrides_by_handler:
                 self.provider_overrides[binprovider.name] = {
@@ -121,6 +123,11 @@ class Binary(ShallowBinary):
             provider_name: ':'.join([str(bin_abspath.parent) for bin_abspath in bin_abspaths])
             for provider_name, bin_abspaths in self.loaded_abspaths.items()
         }
+    
+    @computed_field
+    @property
+    def python_name(self) -> str:
+        return self.name.replace('-', '_').replace('.', '_')
 
     @validate_call
     def install(self) -> Self:
@@ -162,7 +169,7 @@ class Binary(ShallowBinary):
         for binprovider in self.binproviders_supported:
             try:
                 installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name))
-                if installed_bin:
+                if installed_bin.loaded_abspath:
                     # print('LOADED', binprovider, self.name, installed_bin)
                     return self.__class__.model_validate({
                         **self.model_dump(),
@@ -170,6 +177,8 @@ class Binary(ShallowBinary):
                         'loaded_binprovider': binprovider,
                         'binproviders_supported': self.binproviders_supported,
                     })
+                else:
+                    continue
             except Exception as err:
                 # print(err)
                 inner_exc = err
@@ -202,6 +211,7 @@ class Binary(ShallowBinary):
                 # print(err)
                 inner_exc = err
         raise outer_exc from inner_exc
+        
 
 
 class SystemPythonHelpers:

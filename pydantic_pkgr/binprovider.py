@@ -4,7 +4,7 @@ import shutil
 import operator
 import site
 import sysconfig
-from functools import lru_cache
+
 
 from typing import Callable, Iterable, Any, Optional, Type, List, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
 from pathlib import Path
@@ -94,7 +94,6 @@ HostBinPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)] # remov
 # not all bins need to be executable to be bins, some are scripts
 
 
-@lru_cache(maxsize=1000)
 @validate_call
 def bin_abspath(bin_path_or_name: str | BinName | Path, PATH: PATHStr | None=None) -> HostBinPath | None:
     assert bin_path_or_name
@@ -612,7 +611,7 @@ class BinProvider(BaseModel):
         )
 
     @validate_call
-    def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=True) -> ShallowBinary | None:
+    def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False) -> ShallowBinary | None:
         installed = self.load(bin_name=bin_name, overrides=overrides, cache=cache)
         if not installed:
             installed = self.install(bin_name=bin_name, overrides=overrides)
@@ -850,6 +849,15 @@ class BrewProvider(BinProvider):
             raise Exception(f'{self.__class__.__name__} install got returncode {proc.returncode} while installing {packages}: {packages}')
         
         return proc.stderr.strip() + '\n' + proc.stdout.strip()
+    
+    # def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+    #     # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
+    #     version_stdout_str = run(['brew', 'info', '--quiet', bin_name], stdout=PIPE, stderr=PIPE, text=True).stdout
+    #     try:
+    #         return SemVer.parse(version_stdout_str)
+    #     except ValidationError:
+    #         raise
+    #         return None
 
 
 DEFAULT_ENV_PATH = os.environ.get('PATH', '/bin')

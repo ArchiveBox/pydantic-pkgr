@@ -156,7 +156,7 @@ class Binary(ShallowBinary):
         raise outer_exc from inner_exc
 
     @validate_call
-    def load(self, cache=True) -> Self:
+    def load(self, cache=False) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:
@@ -189,7 +189,7 @@ class Binary(ShallowBinary):
         raise outer_exc from inner_exc
 
     @validate_call
-    def load_or_install(self, cache=True) -> Self:
+    def load_or_install(self, cache=False) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:

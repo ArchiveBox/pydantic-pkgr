@@ -12,6 +12,7 @@
 
 **This is a [Python library](https://pypi.org/project/pydantic-pkgr/) for installing & managing packages locally with a variety of package managers.**  
 It's designed for when `pip` dependencies aren't enough, and your app has to install local binaries at runtime.  
+Think of it as *an ORM for your package managers**.
 
 
 ```shell

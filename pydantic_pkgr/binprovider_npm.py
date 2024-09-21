@@ -30,29 +30,35 @@ class NpmProvider(BinProvider):
         npm_bin_dirs = set()
         
         if self.npm_install_prefix:
-            self.npm_install_prefix.mkdir(parents=True, exist_ok=True)
-            npm_bin_dirs.add(self.npm_install_prefix / 'node_modules/.bin')
-
-        search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())
-        stop_if_reached = [str(Path('/')), str(Path('~').expanduser().absolute())]
-        num_hops, max_hops = 0, 6
-        while num_hops < max_hops and str(search_dir) not in stop_if_reached:
-            try:
-                npm_bin_dirs.add(list(search_dir.glob('node_modules/.bin'))[0])
-                break
-            except (IndexError, OSError, Exception):
-                pass
-            search_dir = search_dir.parent
-            num_hops += 1
-        
-        npm_global_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
-        npm_bin_dirs.add(npm_global_dir)
+            # restrict PATH to only use npm prefix
+            npm_bin_dirs = {str(self.npm_install_prefix / 'node_modules/.bin')}
+        else:
+            # find all system npm PATHs
+            search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())
+            stop_if_reached = [str(Path('/')), str(Path('~').expanduser().absolute())]
+            num_hops, max_hops = 0, 6
+            while num_hops < max_hops and str(search_dir) not in stop_if_reached:
+                try:
+                    npm_bin_dirs.add(list(search_dir.glob('node_modules/.bin'))[0])
+                    break
+                except (IndexError, OSError, Exception):
+                    pass
+                search_dir = search_dir.parent
+                num_hops += 1
+            
+            npm_global_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+            npm_bin_dirs.add(npm_global_dir)
         
         for bin_dir in npm_bin_dirs:
             if str(bin_dir) not in PATH:
                 PATH = ':'.join([*PATH.split(':'), str(bin_dir)])
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
+
+    def init_prefix(self):
+        """create npm install prefix and node_modules_dir if needed"""
+        if self.npm_install_prefix:
+            (self.npm_install_prefix / 'node_modules/.bin').mkdir(parents=True, exist_ok=True)
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
@@ -61,8 +67,10 @@ class NpmProvider(BinProvider):
         
         # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
+        
         install_args = [*self.npm_install_args]
         if self.npm_install_prefix:
+            self.init_prefix()
             install_args.append(f'--prefix={self.npm_install_prefix}')
         else:
             install_args.append('--global')

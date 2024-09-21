@@ -1,9 +1,10 @@
 
+#!/usr/bin/env python
 __package__ = "pydantic_pkgr"
 
-
-from typing import Optional, List
+import sys
 from pathlib import Path
+from typing import Optional, List
 
 from pydantic import model_validator, TypeAdapter
 
@@ -92,3 +93,14 @@ class NpmProvider(BinProvider):
     #         return TypeAdapter(HostBinPath).validate_python(abspath)
     #     else:
     #         return None
+
+if __name__ == "__main__":
+    result = npm = NpmProvider()
+
+    if len(sys.argv) > 1:
+        result = func = getattr(npm, sys.argv[1])  # e.g. install
+
+    if len(sys.argv) > 2:
+        result = func(sys.argv[2])  # e.g. install ffmpeg
+
+    print(result)

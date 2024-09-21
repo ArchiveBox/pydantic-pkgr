@@ -1,6 +1,8 @@
 
+#!/usr/bin/env python
 __package__ = "pydantic_pkgr"
 
+import sys
 import shutil
 from typing import Optional
 
@@ -63,3 +65,15 @@ class AptProvider(BinProvider):
 
             return proc.stderr.strip() + "\n" + proc.stdout.strip()
         return f"Installed {packages} succesfully."
+
+
+if __name__ == "__main__":
+    result = apt = AptProvider()
+
+    if len(sys.argv) > 1:
+        result = func = getattr(apt, sys.argv[1])  # e.g. install
+
+    if len(sys.argv) > 2:
+        result = func(sys.argv[2])  # e.g. install ffmpeg
+
+    print(result)

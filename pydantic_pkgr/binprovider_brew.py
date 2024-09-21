@@ -1,6 +1,8 @@
 
+#!/usr/bin/env python
 __package__ = "pydantic_pkgr"
 
+import sys
 from typing import Optional
 
 from pydantic import model_validator, TypeAdapter
@@ -12,6 +14,7 @@ from .binprovider import BinProvider
 class BrewProvider(BinProvider):
     name: BinProviderName = "brew"
     INSTALLER_BIN: BinName = "brew"
+    
     PATH: PATHStr = "/home/linuxbrew/.linuxbrew/bin:/opt/homebrew/bin:/usr/local/bin"
 
     @model_validator(mode="after")
@@ -66,3 +69,14 @@ class BrewProvider(BinProvider):
     #     except ValidationError:
     #         raise
     #         return None
+
+if __name__ == "__main__":
+    result = brew = BrewProvider()
+
+    if len(sys.argv) > 1:
+        result = func = getattr(brew, sys.argv[1])  # e.g. install
+
+    if len(sys.argv) > 2:
+        result = func(sys.argv[2])  # e.g. install ffmpeg
+
+    print(result)

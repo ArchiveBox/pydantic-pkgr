@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 __package__ = 'pydantic_pkgr'
 
 import os

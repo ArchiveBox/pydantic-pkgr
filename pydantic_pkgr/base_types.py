@@ -48,8 +48,8 @@ def func_takes_args_or_kwargs(lambda_func: Callable[..., Any]) -> bool:
 def bin_name(bin_path_or_name: str | Path) -> str:
     name = Path(bin_path_or_name).name
     assert 1 <= len(name) < 64, 'Binary names must be between 1 and 63 characters long'
-    assert name.replace('-', '').replace('_', '').replace('.', '').isalnum(), (
-        f'Binary name can only contain a-Z0-9-_.: {name}')
+    assert name.replace('-', '').replace('_', '').replace('.', '').replace(' ', '').isalnum(), (
+        f'Binary name can only contain a-Z0-9-_. and spaces: {name}')
     assert name[0].isalpha(), 'Binary names must start with a letter'
     return name
 

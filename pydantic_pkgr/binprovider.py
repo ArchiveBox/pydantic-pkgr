@@ -456,8 +456,14 @@ class BinProvider(BaseModel):
         result = TypeAdapter(InstallArgs).validate_python(packages)
         return result
 
+    def setup(self) -> None:
+        """Override this to do any setup steps needed before installing packaged (e.g. create a venv, init an npm prefix, etc.)"""
+        pass
+
     @validate_call
     def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=False) -> ShallowBinary | None:
+        self.setup()
+        
         packages = self.get_packages(bin_name, overrides=overrides, quiet=quiet)
         
         self.setup_PATH()

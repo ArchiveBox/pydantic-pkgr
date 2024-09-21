@@ -18,7 +18,7 @@ class NpmProvider(BinProvider):
 
     PATH: PATHStr = ''
     
-    npm_install_prefix: Optional[Path] = None        # None = -g global, otherwise it's a path
+    npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
     npm_install_args: List[str] = ['--force', '--no-save', '--no-audit', '--no-fund', '--loglevel=error']
 
     @model_validator(mode='after')
@@ -29,9 +29,9 @@ class NpmProvider(BinProvider):
         PATH = self.PATH
         npm_bin_dirs = set()
         
-        if self.npm_install_prefix:
+        if self.npm_prefix:
             # restrict PATH to only use npm prefix
-            npm_bin_dirs = {str(self.npm_install_prefix / 'node_modules/.bin')}
+            npm_bin_dirs = {str(self.npm_prefix / 'node_modules/.bin')}
         else:
             # find all system npm PATHs
             search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())
@@ -55,23 +55,23 @@ class NpmProvider(BinProvider):
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
 
-    def init_prefix(self):
+    def setup(self) -> None:
         """create npm install prefix and node_modules_dir if needed"""
-        if self.npm_install_prefix:
-            (self.npm_install_prefix / 'node_modules/.bin').mkdir(parents=True, exist_ok=True)
+        if self.npm_prefix:
+            (self.npm_prefix / 'node_modules/.bin').mkdir(parents=True, exist_ok=True)
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
+        self.setup()
+        
         packages = packages or self.on_get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
         
         # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
-        
         install_args = [*self.npm_install_args]
-        if self.npm_install_prefix:
-            self.init_prefix()
-            install_args.append(f'--prefix={self.npm_install_prefix}')
+        if self.npm_prefix:
+            install_args.append(f'--prefix={self.npm_prefix}')
         else:
             install_args.append('--global')
         

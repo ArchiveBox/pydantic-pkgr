@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 __package__ = "pydantic_pkgr"
 
+import os
 import sys
 import site
 import shutil
@@ -12,9 +13,11 @@ from typing import Optional, List
 
 from pydantic import model_validator, TypeAdapter, computed_field
 
-from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, path_is_executable
-from .binprovider import BinProvider
+from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, bin_abspaths, path_is_executable
+from .binprovider import BinProvider, DEFAULT_ENV_PATH
 
+
+ACTIVE_VENV = os.getenv('VIRTUAL_ENV', None)
 
 class PipProvider(BinProvider):
     name: BinProviderName = "pip"
@@ -22,7 +25,7 @@ class PipProvider(BinProvider):
     
     PATH: PATHStr = ''
     
-    pip_venv: Optional[Path] = None                                                 # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
+    pip_venv: Optional[Path] = (Path(ACTIVE_VENV) / 'bin') if ACTIVE_VENV else None         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
     pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade
 
     @computed_field
@@ -40,7 +43,7 @@ class PipProvider(BinProvider):
                 abspath = str(venv_pip_path)
         else:
             # use system pip
-            abspath = bin_abspath(self.INSTALLER_BIN, PATH=None) or shutil.which(self.INSTALLER_BIN)  # find self.INSTALLER_BIN abspath using environment path
+            abspath = (bin_abspath(self.INSTALLER_BIN, PATH=None) or shutil.which(self.INSTALLER_BIN)).resolve()  # find self.INSTALLER_BIN abspath using environment path
         
         if not abspath:
             # underlying package manager not found on this host, return None
@@ -70,8 +73,19 @@ class PipProvider(BinProvider):
                     str(Path(d).parent.parent.parent / "bin") for d in site.getsitepackages()
                 ),  # /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin
                 str(Path(site.getusersitepackages()).parent.parent.parent / "bin"),  # /Users/squash/Library/Python/3.9/bin
-                sysconfig.get_path("scripts"),  # /opt/homebrew/bin
+                sysconfig.get_path("scripts"),                  # /opt/homebrew/bin
+                str(Path(sys.executable).resolve().parent),     # /opt/homebrew/Cellar/python@3.11/3.11.9/Frameworks/Python.framework/Versions/3.11/bin
             }
+            
+            # find every python installed in the system PATH and add their parent path, as that's where its corresponding pip will link global bins
+            for abspath in bin_abspaths("python", PATH=DEFAULT_ENV_PATH):
+                pip_bin_dirs.add(str(abspath.parent))
+            for abspath in bin_abspaths("python3", PATH=DEFAULT_ENV_PATH):
+                pip_bin_dirs.add(str(abspath.parent))
+            
+            # remove any active venv from PATH because we're trying to only get the global system python paths
+            if ACTIVE_VENV:
+                pip_bin_dirs.remove(f"{ACTIVE_VENV}/bin")
 
         for bin_dir in pip_bin_dirs:
             if bin_dir not in PATH:

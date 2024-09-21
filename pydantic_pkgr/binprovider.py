@@ -3,15 +3,21 @@ import sys
 import shutil
 import operator
 import site
+import platform
 import sysconfig
 
 
-from typing import Callable, Iterable, Any, Optional, Type, List, Dict, Annotated, ClassVar, Literal, cast, TYPE_CHECKING
+from typing import Callable, Iterable, Any, Optional, List, Dict, Annotated, ClassVar, Literal, cast
 from pathlib import Path
 from subprocess import run, PIPE, CompletedProcess
 
 from pydantic_core import ValidationError
 from pydantic import BaseModel, Field, TypeAdapter, AfterValidator, BeforeValidator, validate_call, ConfigDict, computed_field, model_validator, InstanceOf
+
+from .semver import SemVer
+
+
+OPERATING_SYSTEM = platform.system().lower()
 
 
 def validate_binprovider_name(name: str) -> str:
@@ -25,7 +31,6 @@ BinProviderName = Annotated[str, AfterValidator(validate_binprovider_name)]
 # but because users can create their own BinProviders we cant restrict it to a preset list of literal names
 
 
-from .semver import SemVer
 
 def validate_bin_dir(path: Path) -> Path:
     path = path.expanduser().absolute()

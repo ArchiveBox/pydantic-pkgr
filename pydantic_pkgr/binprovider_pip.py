@@ -25,7 +25,7 @@ class PipProvider(BinProvider):
     
     PATH: PATHStr = ''
     
-    pip_venv: Optional[Path] = (Path(ACTIVE_VENV) / 'bin') if ACTIVE_VENV else None         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
+    pip_venv: Optional[Path] = None                                                         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
     pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade
 
     @computed_field

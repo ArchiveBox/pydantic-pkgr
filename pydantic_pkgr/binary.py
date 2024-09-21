@@ -1,38 +1,21 @@
 __package__ = 'pydantic_pkgr'
 
-import sys
-import inspect
-import importlib
-from pathlib import Path
-
-
-from typing import Any, Optional, Dict, List, Iterable
+from typing import Any, Optional, Dict, List
 from typing_extensions import Self
-from subprocess import run, PIPE, CompletedProcess
 
-
-from pydantic_core import ValidationError
-
-from pydantic import BaseModel, Field, model_validator, computed_field, field_validator, validate_call, field_serializer, ConfigDict, InstanceOf
+from pydantic import Field, model_validator, computed_field, field_validator, validate_call, field_serializer, ConfigDict, InstanceOf
 
 from .semver import SemVer
-from .binprovider import (
+from .shallowbinary import ShallowBinary
+from .binprovider import BinProvider, EnvProvider
+from .base_types import (
     BinName,
-    BinProviderName,
-    BinDirPath,
-    HostBinPath,
-    ShallowBinary,
-    BinProvider,
-    EnvProvider,
-    AptProvider,
-    BrewProvider,
-    PipProvider,
-    ProviderLookupDict,
-    bin_name,
     bin_abspath,
     bin_abspaths,
-    path_is_script,
-    path_is_executable,
+    HostBinPath,
+    BinDirPath,
+    BinProviderName,
+    ProviderLookupDict,
 )
 
 DEFAULT_PROVIDER = EnvProvider()
@@ -104,12 +87,12 @@ class Binary(ShallowBinary):
             if not binprovider.PATH:
                 # print('skipping provider', binprovider.name, binprovider.PATH)
                 continue
-            for bin_abspath in bin_abspaths(self.name, PATH=binprovider.PATH):
+            for abspath in bin_abspaths(self.name, PATH=binprovider.PATH):
                 existing = all_bin_abspaths.get(binprovider.name, [])
-                if bin_abspath not in existing:
+                if abspath not in existing:
                     all_bin_abspaths[binprovider.name] = [
                         *existing,
-                        bin_abspath,
+                        abspath,
                     ]
         return all_bin_abspaths
     
@@ -222,125 +205,3 @@ class Binary(ShallowBinary):
                 continue
         raise outer_exc from inner_exc
         
-
-
-# class SystemPythonHelpers:
-#     @staticmethod
-#     def get_packages() -> str:
-#         return ['python3', 'python3-minimal', 'python3-pip', 'python3-virtualenv']
-
-#     @staticmethod
-#     def get_abspath() -> str:
-#         return sys.executable
-    
-#     @staticmethod
-#     def get_version() -> str:
-#         return '{}.{}.{}'.format(*sys.version_info[:3])
-
-
-# class SqliteHelpers:
-#     @staticmethod
-#     def get_abspath() -> Path:
-#         import sqlite3
-#         importlib.reload(sqlite3)
-#         return Path(inspect.getfile(sqlite3))
-
-#     @staticmethod
-#     def get_version() -> SemVer:
-#         import sqlite3
-#         importlib.reload(sqlite3)
-#         version = sqlite3.version
-#         assert version
-#         return SemVer(version)
-
-# class DjangoHelpers:
-#     @staticmethod
-#     def get_django_abspath() -> str:
-#         import django
-#         return inspect.getfile(django)
-    
-
-#     @staticmethod
-#     def get_django_version() -> str:
-#         import django
-#         return '{}.{}.{} {} ({})'.format(*django.VERSION)
-
-# class YtdlpHelpers:
-#     @staticmethod
-#     def get_ytdlp_packages() -> str:
-#         return ['yt-dlp', 'ffmpeg']
-
-#     @staticmethod
-#     def get_ytdlp_version() -> str:
-#         import yt_dlp
-#         importlib.reload(yt_dlp)
-
-#         version = yt_dlp.version.__version__
-#         assert version
-#         return version
-
-# class PythonBinary(Binary):
-#     name: BinName = 'python'
-
-#     binproviders_supported: List[InstanceOf[BinProvider]] = [
-#         EnvProvider(
-#             packages_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_packages'},
-#             abspath_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_abspath'},
-#             version_handler={'python': 'plugantic.binaries.SystemPythonHelpers.get_version'},
-#         ),
-#     ]
-
-# class SqliteBinary(Binary):
-#     name: BinName = 'sqlite'
-#     binproviders_supported: List[InstanceOf[BinProvider]] = [
-#         EnvProvider(
-#             version_handler={'sqlite': 'plugantic.binaries.SqliteHelpers.get_version'},
-#             abspath_handler={'sqlite': 'plugantic.binaries.SqliteHelpers.get_abspath'},
-#         ),
-#     ]
-
-# class DjangoBinary(Binary):
-#     name: BinName = 'django'
-#     binproviders_supported: List[InstanceOf[BinProvider]] = [
-#         EnvProvider(
-#             abspath_handler={'django': 'plugantic.binaries.DjangoHelpers.get_django_abspath'},
-#             version_handler={'django': 'plugantic.binaries.DjangoHelpers.get_django_version'},
-#         ),
-#     ]
-
-
-
-
-
-# class YtdlpBinary(Binary):
-#     name: BinName = 'yt-dlp'
-#     binproviders_supported: List[InstanceOf[BinProvider]] = [
-#         # EnvProvider(),
-#         PipProvider(version_handler={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_version'}),
-#         BrewProvider(packages_handler={'yt-dlp': 'plugantic.binaries.YtdlpHelpers.get_ytdlp_packages'}),
-#         # AptProvider(packages_handler={'yt-dlp': lambda: ['yt-dlp', 'ffmpeg']}),
-#     ]
-
-
-# class WgetBinary(Binary):
-#     name: BinName = 'wget'
-#     binproviders_supported: List[InstanceOf[BinProvider]] = [EnvProvider(), AptProvider()]
-
-
-# if __name__ == '__main__':
-#     PYTHON_BINARY = PythonBinary()
-#     SQLITE_BINARY = SqliteBinary()
-#     DJANGO_BINARY = DjangoBinary()
-#     WGET_BINARY = WgetBinary()
-#     YTDLP_BINARY = YtdlpPBinary()
-
-#     print('-------------------------------------DEFINING BINARIES---------------------------------')
-#     print(PYTHON_BINARY)
-#     print(SQLITE_BINARY)
-#     print(DJANGO_BINARY)
-#     print(WGET_BINARY)
-#     print(YTDLP_BINARY)
-
-# import json
-# print(json.dumps(EnvProvider().model_dump_json(), indent=4))            # ... everything can also be dumped/loaded as json
-# print(json.dumps(WgetBinary().model_json_schema(), indent=4))          # ... all types provide OpenAPI-ready JSON schemas

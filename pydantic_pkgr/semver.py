@@ -1,23 +1,15 @@
-__package__ = 'archivebox.plugantic'
+__package__ = 'pydantic_pkgr'
 
 import re
-import sys
-import inspect
-import importlib
-from pathlib import Path
+import subprocess
 from collections import namedtuple
 
-
-from typing import Any, Optional, Dict, List, Callable, TYPE_CHECKING
-from typing_extensions import Self
-from subprocess import run, PIPE
-
+from typing import Any, Optional, TYPE_CHECKING
 
 from pydantic_core import ValidationError
+from pydantic import validate_call
 
-from pydantic import BaseModel, Field, model_validator, computed_field, field_validator, validate_call, field_serializer
-
-
+from .base_types import HostBinPath
 
 
 def is_semver_str(semver: Any) -> bool:
@@ -71,7 +63,7 @@ class SemVer(SemVerTuple):
         return result
 
     @classmethod
-    def parse(cls, version_stdout: SemVerParsableTypes) -> Self | None:
+    def parse(cls, version_stdout: SemVerParsableTypes) -> Optional['SemVer']:
         """
         parses a version tag string formatted like into (major, minor, patch) ints
         'Google Chrome 124.0.6367.208'             -> (124, 0, 6367)
@@ -135,3 +127,7 @@ class SemVer(SemVerTuple):
     #         ),
     #     )
 
+
+@validate_call
+def bin_version(bin_path: HostBinPath, args=("--version",)) -> SemVer | None:
+    return SemVer(subprocess.run([str(bin_path), *args], stdout=subprocess.PIPE, text=True).stdout.strip())

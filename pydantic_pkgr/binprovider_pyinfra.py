@@ -5,15 +5,14 @@ import sys
 
 from typing import Optional, Dict, Any
 
-from pydantic import model_validator, TypeAdapter
-from .binprovider import BinProvider, BinProviderName, PATHStr, BinName, InstallArgs, OPERATING_SYSTEM
-# from .semver import SemVer
+from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
+from .binprovider import BinProvider, OPERATING_SYSTEM, DEFAULT_PATH
 
 PYINFRA_INSTALLED = False
 PYINFRA_IMPORT_ERROR = None
 try:
     # from pyinfra import host
-    from pyinfra import operations
+    from pyinfra import operations                           # noqa: F401
     from pyinfra.api import Config, Inventory, State
     from pyinfra.api.connect import connect_all
     from pyinfra.api.operation import add_op
@@ -24,6 +23,8 @@ try:
 except ImportError as err:
     PYINFRA_IMPORT_ERROR = err
     pass
+
+
 
 
 def pyinfra_package_install(pkg_names: str, installer_module: str = "auto", installer_extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
@@ -39,16 +40,21 @@ def pyinfra_package_install(pkg_names: str, installer_module: str = "auto", inst
     if installer_module == 'auto':
         is_macos = OPERATING_SYSTEM == "darwin"
         if is_macos:
-            installer_module = operations.brew.packages
+            installer_module = 'operations.brew.packages'
         else:
-            installer_module = operations.server.packages
+            installer_module = 'operations.server.packages'
     else:
+        # TODO: non-stock pyinfra modules from other libraries?
         assert installer_module.startswith('operations.')
-        installer_module = eval(installer_module)
+    
+    try:
+        installer_module_op = eval(installer_module)
+    except Exception as err:
+        raise RuntimeError(f'Failed to import pyinfra installer_module {installer_module}: {err.__class__.__name__}') from err
     
     result = add_op(
         state,
-        installer_module,
+        installer_module_op,
         name=f"Install system packages: {pkg_names}",
         packages=pkg_names,
         **(installer_extra_kwargs or {}),
@@ -59,10 +65,10 @@ def pyinfra_package_install(pkg_names: str, installer_module: str = "auto", inst
         run_ops(state)
         succeeded = True
     except PyinfraError:
-        pass
+        succeeded = False
         
     result = result[state.inventory.hosts["@local"]]
-    result_text = f'Installing {pkg_names} on {OPERATING_SYSTEM} using Pyinfra {installer_module} {["failed", "succeeded"][succeeded]}:\n{result.stdout}\n{result.stderr}'
+    result_text = f'Installing {pkg_names} on {OPERATING_SYSTEM} using Pyinfra {installer_module} {["failed", "succeeded"][succeeded]}\n{result.stdout}\n{result.stderr}'.strip()
     
     if succeeded:
         return result_text
@@ -78,24 +84,11 @@ def pyinfra_package_install(pkg_names: str, installer_module: str = "auto", inst
 class PyinfraProvider(BinProvider):
     name: BinProviderName = "pyinfra"
     INSTALLER_BIN: BinName = "pyinfra"
-    PATH: PATHStr = os.environ.get("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+    PATH: PATHStr = os.environ.get("PATH", DEFAULT_PATH)
 
     pyinfra_installer_module: str = 'auto'   # e.g. operations.apt.packages, operations.server.packages, etc.
     pyinfra_installer_kwargs: Dict[str, Any] = {}
 
-    @model_validator(mode="after")
-    def load_PATH(self):
-        if not self.INSTALLER_BIN_ABSPATH:
-            # brew is not availabe on this host
-            self.PATH: PATHStr = ""
-            return self
-
-        PATH = self.PATH
-        brew_bin_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["--prefix"]).stdout.strip() + "/bin"
-        if brew_bin_dir not in PATH:
-            PATH = ":".join([brew_bin_dir, *PATH.split(":")])
-        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
-        return self
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
@@ -106,7 +99,14 @@ class PyinfraProvider(BinProvider):
             installer_extra_kwargs=self.pyinfra_installer_kwargs,
         )
 
+
 if __name__ == "__main__":
-    ansible = PyinfraProvider()
-    binary = ansible.install(sys.args[1])
-    print(binary.abspath, binary.version)
+    result = pyinfra = PyinfraProvider()
+    
+    if len(sys.argv) > 1:
+        result = func = getattr(pyinfra, sys.argv[1])   # e.g. install
+
+    if len(sys.argv) > 2:
+        result = func(sys.argv[2])             # e.g. install ffmpeg
+    
+    print(result)

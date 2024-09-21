@@ -6,8 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from pydantic import model_validator, TypeAdapter
-from .binprovider import BinProvider, BinProviderName, PATHStr, BinName, InstallArgs, OPERATING_SYSTEM
+from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
+from .binprovider import BinProvider, OPERATING_SYSTEM, DEFAULT_PATH
+
 
 ANSIBLE_INSTALLED = False
 ANSIBLE_IMPORT_ERROR = None
@@ -32,7 +33,7 @@ ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE = """
 """
 
 
-def ansible_package_install(pkg_names: str, playbook_template=ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE, installer_module='auto', state='present', quiet=False) -> str:
+def ansible_package_install(pkg_names: str, playbook_template=ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE, installer_module='auto', state='present', quiet=True) -> str:
     if not ANSIBLE_INSTALLED:
         raise RuntimeError("Ansible is not installed! To fix:\n    pip install ansible ansible-runner") from ANSIBLE_IMPORT_ERROR
 
@@ -71,7 +72,7 @@ def ansible_package_install(pkg_names: str, playbook_template=ANSIBLE_INSTALL_PL
         r = Runner(config=rc)
         r.run()
         succeeded = r.status == "successful"
-        result_text = f'Installing {pkg_names} on {OPERATING_SYSTEM} using Ansible {installer_module} {["failed", "succeeded"][succeeded]}:\n{r.stdout.read()}\n{r.stderr.read()}'
+        result_text = f'Installing {pkg_names} on {OPERATING_SYSTEM} using Ansible {installer_module} {["failed", "succeeded"][succeeded]}:{r.stdout.read()}\n{r.stderr.read()}'.strip()
         
         # check for succes/failure
         if succeeded:
@@ -83,27 +84,15 @@ def ansible_package_install(pkg_names: str, playbook_template=ANSIBLE_INSTALL_PL
                 )
             raise Exception(f"Installing {pkg_names} failed! (retry with sudo, or install manually)\n{result_text}")
 
+
 class AnsibleProvider(BinProvider):
     name: BinProviderName = "ansible"
     INSTALLER_BIN: BinName = "ansible"
-    PATH: PATHStr = os.environ.get("PATH", "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+    PATH: PATHStr = os.environ.get("PATH", DEFAULT_PATH)
     
     ansible_installer_module: str = 'auto'  # e.g. community.general.homebrew, ansible.builtin.apt, etc.
     ansible_playbook_template: str = ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE
 
-    @model_validator(mode="after")
-    def load_PATH(self):
-        if not self.INSTALLER_BIN_ABSPATH:
-            # brew is not availabe on this host
-            self.PATH: PATHStr = ""
-            return self
-
-        PATH = self.PATH
-        brew_bin_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["--prefix"]).stdout.strip() + "/bin"
-        if brew_bin_dir not in PATH:
-            PATH = ":".join([brew_bin_dir, *PATH.split(":")])
-        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
-        return self
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
         packages = packages or self.on_get_packages(bin_name)
@@ -119,8 +108,13 @@ class AnsibleProvider(BinProvider):
         )
 
 
-if __name__ == '__main__':
-    ansible = AnsibleProvider()
-    binary = ansible.install(sys.args[1])
-    print(binary.abspath, binary.version)
+if __name__ == "__main__":
+    result = ansible = AnsibleProvider()
 
+    if len(sys.argv) > 1:
+        result = func = getattr(ansible, sys.argv[1])  # e.g. install
+
+    if len(sys.argv) > 2:
+        result = func(sys.argv[2])  # e.g. install ffmpeg
+
+    print(result)

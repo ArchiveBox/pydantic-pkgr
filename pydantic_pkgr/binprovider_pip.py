@@ -64,6 +64,7 @@ class PipProvider(BinProvider):
         if self.pip_install_venv:
             # create venv in pip_install_venv if it desnt exit
             if not (self.pip_install_venv / "bin" / "python").is_file():
+                self.pip_install_venv.parent.mkdir(parents=True, exist_ok=True)
                 venv.create(
                     str(self.pip_install_venv),
                     system_site_packages=False,

@@ -30,6 +30,7 @@ class NpmProvider(BinProvider):
         npm_bin_dirs = set()
         
         if self.npm_install_prefix:
+            self.npm_install_prefix.mkdir(parents=True, exist_ok=True)
             npm_bin_dirs.add(self.npm_install_prefix / 'node_modules/.bin')
 
         search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())

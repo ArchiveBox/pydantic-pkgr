@@ -43,7 +43,8 @@ class PipProvider(BinProvider):
                 abspath = str(venv_pip_path)
         else:
             # use system pip
-            abspath = (bin_abspath(self.INSTALLER_BIN, PATH=None) or shutil.which(self.INSTALLER_BIN)).resolve()  # find self.INSTALLER_BIN abspath using environment path
+            relpath = bin_abspath(self.INSTALLER_BIN, PATH=DEFAULT_ENV_PATH) or shutil.which(self.INSTALLER_BIN)
+            abspath = relpath and relpath.resolve()  # find self.INSTALLER_BIN abspath using environment path
         
         if not abspath:
             # underlying package manager not found on this host, return None

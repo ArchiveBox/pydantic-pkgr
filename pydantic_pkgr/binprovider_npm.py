@@ -11,6 +11,11 @@ from pydantic import model_validator, TypeAdapter
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
 from .binprovider import BinProvider
 
+# Cache these values globally because they never change at runtime
+_CACHED_GLOBAL_NPM_PREFIX: str | None = None
+_CACHED_LOCAL_NPM_PREFIX: str | None = None
+_CACHED_HOME_DIR: Path = Path('~').expanduser().absolute()
+
 
 class NpmProvider(BinProvider):
     name: BinProviderName = 'npm'
@@ -23,6 +28,9 @@ class NpmProvider(BinProvider):
 
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self):
+        global _CACHED_GLOBAL_NPM_PREFIX
+        global _CACHED_LOCAL_NPM_PREFIX
+        
         if not self.INSTALLER_BIN_ABSPATH:
             return TypeAdapter(PATHStr).validate_python('')
         
@@ -33,20 +41,26 @@ class NpmProvider(BinProvider):
             # restrict PATH to only use npm prefix
             npm_bin_dirs = {str(self.npm_prefix / 'node_modules/.bin')}
         else:
-            # find all system npm PATHs
-            search_dir = Path(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip())
-            stop_if_reached = [str(Path('/')), str(Path('~').expanduser().absolute())]
+            # find all local and global npm PATHs
+            npm_local_dir = _CACHED_LOCAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip()
+            _CACHED_LOCAL_NPM_PREFIX = npm_local_dir
+
+            # start at npm_local_dir and walk up to $HOME (or /), finding all npm bin dirs along the way
+            search_dir = Path(npm_local_dir)
+            stop_if_reached = [str(Path('/')), str(_CACHED_HOME_DIR)]
             num_hops, max_hops = 0, 6
             while num_hops < max_hops and str(search_dir) not in stop_if_reached:
                 try:
                     npm_bin_dirs.add(list(search_dir.glob('node_modules/.bin'))[0])
                     break
                 except (IndexError, OSError, Exception):
+                    # could happen becuase we dont have permission to access the parent dir, or it's been moved, or many other weird edge cases...
                     pass
                 search_dir = search_dir.parent
                 num_hops += 1
             
-            npm_global_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+            npm_global_dir = _CACHED_GLOBAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+            _CACHED_GLOBAL_NPM_PREFIX = npm_global_dir
             npm_bin_dirs.add(npm_global_dir)
         
         for bin_dir in npm_bin_dirs:

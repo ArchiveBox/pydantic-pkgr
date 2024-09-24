@@ -3,6 +3,8 @@
 __package__ = "pydantic_pkgr"
 
 import sys
+import platform
+from pathlib import Path
 from typing import Optional
 
 from pydantic import model_validator, TypeAdapter
@@ -24,11 +26,22 @@ class BrewProvider(BinProvider):
             self.PATH: PATHStr = ""
             return self
 
-        PATH = self.PATH
-        brew_bin_dir = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["--prefix"]).stdout.strip() + "/bin"
-        if brew_bin_dir not in PATH:
-            PATH = ":".join([brew_bin_dir, *PATH.split(":")])
-        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
+        OS = platform.system().lower()
+        DEFAULT_MACOS_DIR = Path('/opt/homebrew/bin') if platform.machine() == 'arm64' else Path('/usr/local/bin')
+        DEFAULT_LINUX_DIR = Path('/home/linuxbrew/.linuxbrew/bin')
+        
+        PATHs = set()
+        
+        if OS == 'darwin' and DEFAULT_MACOS_DIR.exists():
+            PATHs.add(str(DEFAULT_MACOS_DIR))
+        if OS != 'darwin' and DEFAULT_LINUX_DIR.exists():
+            PATHs.add(str(DEFAULT_LINUX_DIR))
+        
+        if not PATHs:
+            # if we cant autodetect the paths, run brew --prefix to get the path manually (very slow)
+            PATHs.add(self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["--prefix"]).stdout.strip() + "/bin")
+        
+        self.PATH = TypeAdapter(PATHStr).validate_python(':'.join(PATHs))
         return self
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:

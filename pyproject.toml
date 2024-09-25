@@ -1,6 +1,6 @@
 [project]
 name = "pydantic-pkgr"
-version = "0.3.6"
+version = "0.3.7"
 description = "System package manager APIs in strongly typed Python"
 authors = [
     {name = "Nick Sweeting", email = "pydantic-pkgr-pyproject-toml@sweeting.me"},

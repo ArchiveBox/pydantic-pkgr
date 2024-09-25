@@ -24,7 +24,7 @@ class NpmProvider(BinProvider):
     PATH: PATHStr = ''
     
     npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
-    npm_install_args: List[str] = ['--force', '--no-save', '--no-audit', '--no-fund', '--loglevel=error']
+    npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']
 
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self):

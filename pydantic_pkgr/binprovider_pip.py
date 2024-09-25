@@ -6,10 +6,9 @@ import sys
 import site
 import shutil
 import sysconfig
-import venv
 
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Set
 
 from pydantic import model_validator, TypeAdapter, computed_field
 
@@ -18,6 +17,7 @@ from .binprovider import BinProvider, DEFAULT_ENV_PATH
 
 
 ACTIVE_VENV = os.getenv('VIRTUAL_ENV', None)
+_CACHED_GLOBAL_PIP_BIN_DIRS: Set[str] | None = None
 
 class PipProvider(BinProvider):
     name: BinProviderName = "pip"
@@ -53,13 +53,15 @@ class PipProvider(BinProvider):
 
     @model_validator(mode="after")
     def load_PATH_from_pip_sitepackages(self):
+        global _CACHED_GLOBAL_PIP_BIN_DIRS
         PATH = self.PATH
 
         pip_bin_dirs = set()
         
         if self.pip_venv:
-            # restrict PATH to only use venv
+            # restrict PATH to only use venv bin path
             pip_bin_dirs = {str(self.pip_venv / "bin")}
+            
         elif self.INSTALLER_BIN == "pipx":
             # restrict PATH to only use global pipx bin path
             if self.INSTALLER_BIN_ABSPATH and shutil.which(self.INSTALLER_BIN_ABSPATH):
@@ -69,20 +71,27 @@ class PipProvider(BinProvider):
                     pip_bin_dirs = {PIPX_BIN_DIR}
         else:
             # autodetect global system python paths
-            pip_bin_dirs = {
-                * (
-                    str(Path(d).parent.parent.parent / "bin") for d in site.getsitepackages()
-                ),  # /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin
-                str(Path(site.getusersitepackages()).parent.parent.parent / "bin"),  # /Users/squash/Library/Python/3.9/bin
-                sysconfig.get_path("scripts"),                  # /opt/homebrew/bin
-                str(Path(sys.executable).resolve().parent),     # /opt/homebrew/Cellar/python@3.11/3.11.9/Frameworks/Python.framework/Versions/3.11/bin
-            }
             
-            # find every python installed in the system PATH and add their parent path, as that's where its corresponding pip will link global bins
-            for abspath in bin_abspaths("python", PATH=DEFAULT_ENV_PATH):
-                pip_bin_dirs.add(str(abspath.parent))
-            for abspath in bin_abspaths("python3", PATH=DEFAULT_ENV_PATH):
-                pip_bin_dirs.add(str(abspath.parent))
+            if _CACHED_GLOBAL_PIP_BIN_DIRS:
+                pip_bin_dirs = _CACHED_GLOBAL_PIP_BIN_DIRS.copy()
+            else:
+                pip_bin_dirs = {
+                    * (
+                        str(Path(sitepackage_dir).parent.parent.parent / "bin")               # /opt/homebrew/opt/python@3.11/Frameworks/Python.framework/Versions/3.11/bin
+                        for sitepackage_dir in site.getsitepackages()
+                    ),
+                    str(Path(site.getusersitepackages()).parent.parent.parent / "bin"),       # /Users/squash/Library/Python/3.9/bin
+                    sysconfig.get_path("scripts"),                                            # /opt/homebrew/bin
+                    str(Path(sys.executable).resolve().parent),                               # /opt/homebrew/Cellar/python@3.11/3.11.9/Frameworks/Python.framework/Versions/3.11/bin
+                }
+                
+                # find every python installed in the system PATH and add their parent path, as that's where its corresponding pip will link global bins
+                for abspath in bin_abspaths("python", PATH=DEFAULT_ENV_PATH):                 # ~/Library/Frameworks/Python.framework/Versions/3.10/bin
+                    pip_bin_dirs.add(str(abspath.parent))
+                for abspath in bin_abspaths("python3", PATH=DEFAULT_ENV_PATH):                # /usr/local/bin or anywhere else we see python3 in $PATH
+                    pip_bin_dirs.add(str(abspath.parent))
+                
+                _CACHED_GLOBAL_PIP_BIN_DIRS = pip_bin_dirs.copy()
             
             # remove any active venv from PATH because we're trying to only get the global system python paths
             if ACTIVE_VENV:
@@ -99,8 +108,10 @@ class PipProvider(BinProvider):
         if self.pip_venv:
             self.pip_venv.parent.mkdir(parents=True, exist_ok=True)
             
-            # create venv in pip_venv if it doesnt exist
+            # create new venv in pip_venv if it doesnt exist
             if not (self.pip_venv / "bin" / "python").is_file():
+                import venv
+                
                 venv.create(
                     str(self.pip_venv),
                     system_site_packages=False,

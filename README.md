@@ -188,8 +188,8 @@ class YtdlpBinary(Binary):
     
     # customize installed package names for specific package managers
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
-        'pip': {'packages': lambda: 'yt-dlp[default,curl-cffi]'}},
-        'apt': {'packages': lambda: 'yt-dlp ffmpeg'}},
+        'pip': {'packages': lambda: ['yt-dlp[default,curl-cffi]']}},
+        'apt': {'packages': lambda: ['yt-dlp', 'ffmpeg']}},
         'brew': {'packages': 'some.other.module.get_brew_packages'}},  # also accepts dotted import path to function
     }
 
@@ -400,6 +400,8 @@ register_admin_views(custom_admin)
 > - https://github.com/surenkov/django-pydantic-field/issues/65
 > - https://github.com/surenkov/django-pydantic-field/issues/66
 
+<details><summary>Expand to see more...</summary>
+
 ~~Install `django-jsonform` to get auto-generated Forms for editing BinProvider, Binary, etc. data~~
 ```bash
 pip install django-pydantic-field django-jsonform
@@ -417,6 +419,9 @@ class MyModelAdmin(admin.ModelAdmin):
 
 admin.site.register(MyModel, MyModelAdmin)
 ```
+
+</details>
+
 *For a full example see our provided [`django_example_project/`](https://github.com/ArchiveBox/pydantic-pkgr/tree/main/django_example_project)...*
 
 <br/>

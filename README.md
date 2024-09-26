@@ -449,7 +449,7 @@ class CargoProvider(BinProvider):
 
     def on_install(self, bin_name: BinName, **context):
         packages = self.on_get_packages(bin_name)
-        installer_process = run(['cargo', 'install', *packages.split(' ')], stdout=PIPE, stderr=PIPE)
+        installer_process = run(['cargo', 'install', *packages.split(' ')], capture_output = True, text=True)
         assert installer_process.returncode == 0
 
     def on_get_packages(self, bin_name: BinName, **context) -> InstallArgs:

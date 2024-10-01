@@ -9,7 +9,7 @@ import subprocess
 
 from typing import Callable, Iterable, Any, Optional, List, Dict, ClassVar, cast
 from pathlib import Path
-from subprocess import run, PIPE, CompletedProcess
+from subprocess import run, CompletedProcess
 
 from pydantic_core import ValidationError
 from pydantic import BaseModel, Field, TypeAdapter, validate_call, ConfigDict, InstanceOf, computed_field, model_validator
@@ -146,7 +146,7 @@ class ShallowBinary(BaseModel):
             assert self.loaded_version, "Binary must have a loaded_version, make sure to load_or_install() first"
         assert Path(cwd).is_dir(), f"cwd must be a valid directory: {cwd}"
         cmd = [str(bin_name), *(str(arg) for arg in cmd)]
-        return subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=str(cwd), **kwargs)
+        return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), **kwargs)
 
 
 class BinProvider(BaseModel):
@@ -224,7 +224,7 @@ class BinProvider(BaseModel):
         assert bin_abspath, f'BinProvider {self.name} cannot execute bin_name {bin_name} because it could not find its abspath. (Did {self.__class__.__name__}.load_or_install({bin_name}) fail?)'
         assert Path(cwd).is_dir(), f'cwd must be a valid directory: {cwd}'
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
-        return run(cmd, stdout=PIPE, stderr=PIPE, text=True, cwd=str(cwd), **kwargs)
+        return run(cmd, capture_output=True, text=True, cwd=str(cwd), **kwargs)
 
     def get_default_handlers(self):
         return self.get_handlers_for_bin('*')

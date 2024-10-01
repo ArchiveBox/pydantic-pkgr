@@ -4,13 +4,20 @@ __package__ = "pydantic_pkgr"
 
 import sys
 import platform
-from pathlib import Path
 from typing import Optional
+from pathlib import Path
+from subprocess import run
 
 from pydantic import model_validator, TypeAdapter
 
-from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
+from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath
+from .semver import SemVer
 from .binprovider import BinProvider
+
+OS = platform.system().lower()
+
+DEFAULT_MACOS_DIR = Path('/opt/homebrew/bin') if platform.machine() == 'arm64' else Path('/usr/local/bin')
+DEFAULT_LINUX_DIR = Path('/home/linuxbrew/.linuxbrew/bin')
 
 
 class BrewProvider(BinProvider):
@@ -26,10 +33,6 @@ class BrewProvider(BinProvider):
             self.PATH: PATHStr = ""
             return self
 
-        OS = platform.system().lower()
-        DEFAULT_MACOS_DIR = Path('/opt/homebrew/bin') if platform.machine() == 'arm64' else Path('/usr/local/bin')
-        DEFAULT_LINUX_DIR = Path('/home/linuxbrew/.linuxbrew/bin')
-        
         PATHs = set()
         
         if OS == 'darwin' and DEFAULT_MACOS_DIR.exists():
@@ -74,14 +77,38 @@ class BrewProvider(BinProvider):
 
         return proc.stderr.strip() + "\n" + proc.stdout.strip()
 
-    # def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
-    #     # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
-    #     version_stdout_str = run(['brew', 'info', '--quiet', bin_name], stdout=PIPE, stderr=PIPE, text=True).stdout
-    #     try:
-    #         return SemVer.parse(version_stdout_str)
-    #     except ValidationError:
-    #         raise
-    #         return None
+    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+        # print(f'[*] {self.__class__.__name__}: Getting abspath for {bin_name}...')
+
+        if not self.PATH:
+            return None
+        
+        # not all brew-installed binaries are symlinked into the default bin dir (e.g. curl)
+        # because it might conflict with a system binary of the same name (e.g. /usr/bin/curl)
+        # so we need to check for the binary in the namespaced opt dir as well
+        extra_path = self.PATH.replace('/bin', '/opt/{bin_name}/bin')     # e.g. /opt/homebrew/opt/curl/bin/curl
+        
+        return bin_abspath(bin_name, PATH=f'{self.PATH}:{extra_path}')
+        
+
+    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+        # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
+        try:
+            return super().on_get_version(bin_name, abspath, **context)
+        except ValueError:
+            pass
+        
+        if not self.INSTALLER_BIN_ABSPATH:
+            return None
+        
+        version = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', bin_name], text=True).stdout.strip()
+        
+        version_stdout_str = run([str(self.INSTALLER_BIN_ABSPATH), 'info', '--quiet', bin_name], stdout=PIPE, stderr=PIPE, text=True).stdout
+        try:
+            return SemVer.parse(version_stdout_str)
+        except ValidationError:
+            raise
+            return None
 
 if __name__ == "__main__":
     result = brew = BrewProvider()

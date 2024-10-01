@@ -1,5 +1,6 @@
 
 #!/usr/bin/env python
+
 __package__ = "pydantic_pkgr"
 
 import sys
@@ -8,7 +9,8 @@ from typing import Optional, List
 
 from pydantic import model_validator, TypeAdapter
 
-from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
+from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath
+from .semver import SemVer
 from .binprovider import BinProvider
 
 # Cache these values globally because they never change at runtime
@@ -98,26 +100,65 @@ class NpmProvider(BinProvider):
         
         return proc.stderr.strip() + '\n' + proc.stdout.strip()
     
-    # def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
-    #     packages = self.on_get_packages(str(bin_name))
-    #     if not self.INSTALLER_BIN_ABSPATH:
-    #         raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
+    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+        # print(self.__class__.__name__, 'on_get_abspath', bin_name)
+        try:
+            abspath = super().on_get_abspath(bin_name, **context)
+            if abspath:
+                return abspath
+        except Exception:
+            pass
         
-    #     proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['ls', *packages])
+        if not self.INSTALLER_BIN_ABSPATH:
+            return None
         
-    #     if proc.returncode != 0:
-    #         print(proc.stdout.strip())
-    #         print(proc.stderr.strip())
-    #         raise Exception(f'{self.__class__.__name__}: got returncode {proc.returncode} while getting {bin_name} abspath')
+        # fallback to using npm show to get alternate binary names based on the package
+        try:
+            package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
+            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5).stdout.strip().split('\n')
+            bin_name = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(', ')[0]
+            abspath = bin_abspath(bin_name, PATH=self.PATH)
+            if abspath:
+                return TypeAdapter(HostBinPath).validate_python(abspath)
+        except Exception:
+            pass        
+        return None
+    
+    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+        # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
+        try:
+            version =  super().on_get_version(bin_name, abspath, **context)
+            if version:
+                return version
+        except ValueError:
+            pass
         
-    #     PATH = proc.stdout.strip().split('\n', 1)[0].split(' ', 1)[-1] + '/node_modules/.bin'
-    #     abspath = shutil.which(str(bin_name), path=PATH)
-    #     if abspath:
-    #         return TypeAdapter(HostBinPath).validate_python(abspath)
-    #     else:
-    #         return None
+        if not self.INSTALLER_BIN_ABSPATH:
+            return None
+        
+        # fallback to using npm show to get the installed package version
+        try:
+            package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
+            output_line = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+                'list',
+                f'--prefix={self.npm_prefix}' if self.npm_prefix else '--global',
+                '--depth=0',
+                package,
+            ], timeout=5).stdout.strip()
+            # /opt/homebrew/lib
+            # └── @postlight/parser@2.2.3
+            version_str = output_line.split('\n')[1].rsplit('@', 1)[-1]
+            return SemVer.parse(version_str)
+        except Exception:
+            pass
+        return None
 
 if __name__ == "__main__":
+    # Usage:
+    # ./binprovider_npm.py load @postlight/parser
+    # ./binprovider_npm.py install @postlight/parser
+    # ./binprovider_npm.py get_version @postlight/parser
+    # ./binprovider_npm.py get_abspath @postlight/parser
     result = npm = NpmProvider()
 
     if len(sys.argv) > 1:

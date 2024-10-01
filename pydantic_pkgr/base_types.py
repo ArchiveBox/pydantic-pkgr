@@ -46,11 +46,31 @@ def func_takes_args_or_kwargs(lambda_func: Callable[..., Any]) -> bool:
 
 @validate_call
 def bin_name(bin_path_or_name: str | Path) -> str:
-    name = Path(bin_path_or_name).name
+    """
+    - wget -> wget
+    - /usr/bin/wget -> wget
+    - ~/bin/wget -> wget
+    - ~/.local/bin/wget -> wget
+    - @postlight/parser -> @postlight/parser
+    - @postlight/parser@2.2.3 -> @postlight/parser
+    - yt-dlp==2024.05.09 -> yt-dlp
+    - postlight/parser^2.2.3 -> postlight/parser
+    - @postlight/parser@^2.2.3 -> @postlight/parser
+    """
+    str_bin_name = str(bin_path_or_name).split('^', 1)[0].split('=', 1)[0].split('>', 1)[0].split('<', 1)[0]
+    if str_bin_name.startswith('@'):
+        # @postlight/parser@^2.2.3 -> @postlight/parser
+        str_bin_name = '@' + str_bin_name[1:].split('@', 1)[0]
+    else:
+        str_bin_name = str_bin_name.split('@', 1)[0]
+        
+    assert len(str_bin_name) > 0, 'Binary names must be non-empty'
+    name = Path(str_bin_name).name if str_bin_name[0] in ('.', '/', '~') else str_bin_name
     assert 1 <= len(name) < 64, 'Binary names must be between 1 and 63 characters long'
-    assert name.replace('-', '').replace('_', '').replace('.', '').replace(' ', '').isalnum(), (
-        f'Binary name can only contain a-Z0-9-_. and spaces: {name}')
-    assert name[0].isalpha(), 'Binary names must start with a letter'
+    assert name.replace('-', '').replace('_', '').replace('.', '').replace(' ', '').replace('@', '').replace('/', '').isalnum(), (
+        f'Binary name can only contain a-Z0-9-_.@/ and spaces: {name}')
+    assert name.replace('@', '')[0].isalpha(), 'Binary names must start with a letter or @'
+    # print('PARSING BIN NAME', bin_path_or_name, '->', name)
     return name
 
 BinName = Annotated[str, AfterValidator(bin_name)]

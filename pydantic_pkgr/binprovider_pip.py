@@ -13,6 +13,7 @@ from typing import Optional, List, Set
 from pydantic import model_validator, TypeAdapter, computed_field
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, bin_abspaths, path_is_executable
+from .semver import SemVer
 from .binprovider import BinProvider, DEFAULT_ENV_PATH
 
 
@@ -144,29 +145,59 @@ class PipProvider(BinProvider):
 
         return proc.stderr.strip() + "\n" + proc.stdout.strip()
 
-    # def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
-    #     packages = self.on_get_packages(str(bin_name))
-    #     if not self.INSTALLER_BIN_ABSPATH:
-    #         raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
-
-    #     proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages])
-
-    #     if proc.returncode != 0:
-    #         print(proc.stdout.strip())
-    #         print(proc.stderr.strip())
-    #         raise Exception(f'{self.__class__.__name__}: got returncode {proc.returncode} while getting {bin_name} abspath')
-
-    #     output_lines = proc.stdout.strip().split('\n')
-    #     location = [line for line in output_lines if line.startswith('Location: ')][0].split(': ', 1)[-1]
-    #     PATH = str(Path(location).parent.parent.parent / 'bin')
-    #     abspath = shutil.which(str(bin_name), path=PATH)
-    #     if abspath:
-    #         return TypeAdapter(HostBinPath).validate_python(abspath)
-    #     else:
-    #         return None
+    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+        try:
+            abspath = super().on_get_abspath(bin_name, **context)
+            if abspath:
+                return abspath
+        except Exception:
+            pass
+        
+        if not self.INSTALLER_BIN_ABSPATH:
+            return None
+        
+        # fallback to using pip show to get the site-packages bin path
+        packages = self.on_get_packages(str(bin_name)) or [str(bin_name)]
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages], timeout=5).stdout.strip().split('\n')
+        try:
+            location = [line for line in output_lines if line.startswith('Location: ')][0].split('Location: ', 1)[-1]
+        except IndexError:
+            return None
+        PATH = str(Path(location).parent.parent.parent / 'bin')
+        abspath = bin_abspath(str(bin_name), PATH=PATH)
+        if abspath:
+            return TypeAdapter(HostBinPath).validate_python(abspath)
+        else:
+            return None
+    
+    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+        # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
+        try:
+            version =  super().on_get_version(bin_name, abspath, **context)
+            if version:
+                return version
+        except ValueError:
+            pass
+        
+        if not self.INSTALLER_BIN_ABSPATH:
+            return None
+        
+        # fallback to using pip show to get the version
+        package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]   # assume last package in list is the main one
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5).stdout.strip().split('\n')
+        try:
+            version_str = [line for line in output_lines if line.startswith('Version: ')][0].split('Version: ', 1)[-1]
+            return SemVer.parse(version_str)
+        except Exception:
+            return None
 
 
 if __name__ == "__main__":
+    # Usage:
+    # ./binprovider_pip.py load yt-dlp
+    # ./binprovider_pip.py install pip
+    # ./binprovider_pip.py get_version pip
+    # ./binprovider_pip.py get_abspath pip
     result = pip = PipProvider()
 
     if len(sys.argv) > 1:

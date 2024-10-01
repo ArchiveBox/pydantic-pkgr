@@ -88,29 +88,53 @@ class BrewProvider(BinProvider):
         # so we need to check for the binary in the namespaced opt dir as well
         extra_path = self.PATH.replace('/bin', '/opt/{bin_name}/bin')     # e.g. /opt/homebrew/opt/curl/bin/curl
         
-        return bin_abspath(bin_name, PATH=f'{self.PATH}:{extra_path}')
+        abspath = bin_abspath(bin_name, PATH=f'{self.PATH}:{extra_path}')
+        if abspath:
+            return abspath
+        
+        if not self.INSTALLER_BIN_ABSPATH:
+            return None
+        
+        # fallback to using brew info to get the Cellar bin path
+        for package in (self.on_get_packages(str(bin_name)) or [str(bin_name)]):
+            try:
+                info_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=5).stdout.strip().split('\n')
+                # /opt/homebrew/Cellar/curl/8.10.0 (530 files, 4MB)
+                cellar_path = [line for line in info_lines if '/Cellar/' in line][0].rsplit(' (', 1)[0]
+                abspath = bin_abspath(bin_name, PATH=f'{cellar_path}/bin')
+                if abspath:
+                    return abspath
+            except Exception:
+                pass
+        return None
         
 
     def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
-            return super().on_get_version(bin_name, abspath, **context)
+            version =  super().on_get_version(bin_name, abspath, **context)
+            if version:
+                return version
         except ValueError:
             pass
         
         if not self.INSTALLER_BIN_ABSPATH:
             return None
         
-        version = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', bin_name], text=True).stdout.strip()
-        
-        version_stdout_str = run([str(self.INSTALLER_BIN_ABSPATH), 'info', '--quiet', bin_name], stdout=PIPE, stderr=PIPE, text=True).stdout
+        # fallback to using brew info to get the version
+        package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]   # assume last package in list is the main one
         try:
-            return SemVer.parse(version_stdout_str)
-        except ValidationError:
-            raise
+            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=5).stdout.strip()
+            return SemVer.parse(version_str)
+        except Exception:
             return None
 
 if __name__ == "__main__":
+    # Usage:
+    # ./binprovider_brew.py load yt-dlp
+    # ./binprovider_brew.py install pip
+    # ./binprovider_brew.py get_version pip
+    # ./binprovider_brew.py get_abspath pip
     result = brew = BrewProvider()
 
     if len(sys.argv) > 1:

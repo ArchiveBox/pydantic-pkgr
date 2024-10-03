@@ -165,6 +165,7 @@ class TestBinary(unittest.TestCase):
         self.assertEqual(python_bin.loaded_binprovider, shallow_bin.loaded_binprovider)
         self.assertEqual(python_bin.loaded_abspath, shallow_bin.loaded_abspath)
         self.assertEqual(python_bin.loaded_version, shallow_bin.loaded_version)
+        self.assertEqual(python_bin.loaded_sha256, shallow_bin.loaded_sha256)
 
         self.assertEqual(python_bin.loaded_version, SemVer('{}.{}.{}'.format(*sys.version_info[:3])))
         self.assertEqual(python_bin.loaded_abspath, Path(sys.executable).absolute())
@@ -191,6 +192,7 @@ class InstallTest(unittest.TestCase):
         self.assertEqual(binary_bin.loaded_binprovider, provider_bin.loaded_binprovider)
         self.assertEqual(binary_bin.loaded_abspath, provider_bin.loaded_abspath)
         self.assertEqual(binary_bin.loaded_version, provider_bin.loaded_version)
+        self.assertEqual(binary_bin.loaded_sha256, provider_bin.loaded_sha256)
 
         self.assertIn(binary_bin.loaded_abspath, flatten(binary_bin.loaded_abspaths.values()))
         self.assertIn(str(binary_bin.bin_dir), flatten(PATH.split(':') for PATH in binary_bin.loaded_bin_dirs.values()))

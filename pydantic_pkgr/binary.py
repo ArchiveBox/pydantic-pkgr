@@ -13,9 +13,10 @@ from .base_types import (
     bin_abspath,
     bin_abspaths,
     HostBinPath,
-    BinDirPath,
     BinProviderName,
     ProviderLookupDict,
+    PATHStr,
+    Sha256,
 )
 
 DEFAULT_PROVIDER = EnvProvider()
@@ -33,6 +34,7 @@ class Binary(ShallowBinary):
     loaded_binprovider: Optional[InstanceOf[BinProvider]] = Field(default=None, alias='binprovider')
     loaded_abspath: Optional[HostBinPath] = Field(default=None, alias='abspath')
     loaded_version: Optional[SemVer] = Field(default=None, alias='version')
+    loaded_sha256: Optional[Sha256] = Field(default=None, alias='sha256')
     
     # bin_filename:  see below
     # is_executable: see below
@@ -99,7 +101,7 @@ class Binary(ShallowBinary):
 
     @computed_field
     @property
-    def loaded_bin_dirs(self) -> Dict[BinProviderName, BinDirPath]:
+    def loaded_bin_dirs(self) -> Dict[BinProviderName, PATHStr]:
         return {
             provider_name: ':'.join([str(bin_abspath.parent) for bin_abspath in bin_abspaths])
             for provider_name, bin_abspaths in self.loaded_abspaths.items()

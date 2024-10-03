@@ -3,6 +3,7 @@ __package__ = "pydantic_pkgr"
 import os
 import sys
 import shutil
+import hashlib
 import operator
 import platform
 import subprocess
@@ -26,6 +27,7 @@ from .base_types import (
     ProviderHandlerRef,
     ProviderHandler,
     HandlerType,
+    Sha256,
     bin_name,
     path_is_executable,
     path_is_script,
@@ -74,6 +76,7 @@ class ShallowBinary(BaseModel):
     loaded_binprovider: InstanceOf["BinProvider"] = Field(alias="binprovider")
     loaded_abspath: HostBinPath = Field(alias="abspath")
     loaded_version: SemVer = Field(alias="version")
+    loaded_sha256: Sha256 = Field(alias="sha256")
 
     def __getattr__(self, item):
         """Allow accessing fields as attributes by both field name and alias name"""
@@ -392,6 +395,23 @@ class BinProvider(BaseModel):
     def get_abspaths(self, bin_name: BinName) -> List[HostBinPath]:
         return bin_abspaths(bin_name, PATH=self.PATH)
 
+    @validate_call
+    def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None) -> Sha256 | None:
+        """Get the sha256 hash of the binary at the given abspath (or equivalent hash of the underlying package)"""
+        
+        abspath = abspath or self.get_abspath(bin_name)
+        if not abspath or not abspath.exists():
+            return None
+        
+        if sys.version_info >= (3, 11):
+            with open(abspath, "rb", buffering=0) as f:
+                return TypeAdapter(Sha256).validate_python(hashlib.file_digest(f, 'sha256').hexdigest())
+        
+        hash_sha256 = hashlib.sha256()
+        with open(abspath, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_sha256.update(chunk)
+        return TypeAdapter(Sha256).validate_python(hash_sha256.hexdigest())
 
     @validate_call
     def get_abspath(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=True) -> HostBinPath | None:
@@ -489,11 +509,16 @@ class BinProvider(BaseModel):
         if not quiet:
             assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
         
+        sha256 = self.get_sha256(bin_name, abspath=installed_abspath)
+        if not quiet:
+            assert sha256, f'{self.__class__.__name__} Unable to sha256 of binary {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
+        
         result = ShallowBinary(
             name=bin_name,
             binprovider=self,
             abspath=installed_abspath,
             version=installed_version,
+            sha256=sha256 or 'unknown',
             binproviders=[self],
         ) if (installed_abspath and installed_version) else None
         self._install_cache[bin_name] = result
@@ -519,12 +544,19 @@ class BinProvider(BaseModel):
         installed_version = installed_version or self.get_version(bin_name, abspath=installed_abspath, overrides=overrides, quiet=quiet)
         if not installed_version:
             return None
+        
+        sha256 = self.get_sha256(bin_name, abspath=installed_abspath)
+        if not sha256:
+            # not ideal to store invalid sha256 but it's better than nothing
+            sha256 = 'unknown'
+        
 
         return ShallowBinary(
             name=bin_name,
             binprovider=self,
             abspath=installed_abspath,
             version=installed_version,
+            sha256=sha256,
             binproviders=[self],
         )
 

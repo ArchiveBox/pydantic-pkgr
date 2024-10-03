@@ -177,6 +177,13 @@ def bin_abspaths(bin_path_or_name: BinName | Path, PATH: PATHStr | None=None) ->
 
 ################## Types ##############################################
 
+def is_valid_sha256(sha256: str) -> str:
+    assert len(sha256) == 64
+    assert sha256.isalnum()
+    return sha256
+
+Sha256 = Annotated[str, AfterValidator(is_valid_sha256)]
+
 def is_valid_install_args(install_args: List[str]) -> List[str]:
     """Make sure a string is a valid install string for a package manager, e.g. ['yt-dlp', 'ffmpeg']"""
     assert install_args

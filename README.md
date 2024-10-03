@@ -55,8 +55,8 @@ dependencies = [
 for binary in dependencies:
     binary = binary.load_or_install()
 
-    print(binary.abspath, binary.version, binary.binprovider, binary.is_valid)
-    # Path('/usr/bin/curl') SemVer('7.81.0') AptProvider() True
+    print(binary.abspath, binary.version, binary.binprovider, binary.is_valid, binary.sha256)
+    # Path('/usr/bin/curl') SemVer('7.81.0') AptProvider() True abc134...
 
     binary.exec(cmd=['--version'])   # curl 7.81.0 (x86_64-apple-darwin23.0) libcurl/7.81.0 ...
 ```
@@ -134,6 +134,7 @@ This type represents a "provider of binaries", e.g. a package manager like `apt`
 - `get_version(bin_name: str) -> SemVer('1.0.0')`  get currently installed version
 - `get_abspath(bin_name: str) -> Path('/absolute/path/to/bin')` get installed bin abspath
 * `get_abspaths(bin_name: str) -> [Path('/opt/homebrew/bin/curl'), Path('/other/paths/to/curl'), ...]` get all matching bins found
+* `get_sha256(bin_name: str) -> str` get sha256 hash hexdigest of the binary
 
 
 ```python
@@ -153,6 +154,7 @@ apt = AptProvider()
 curl = apt.install(bin_name='curl')   # Binary('curl', provider=apt)
 print(curl.abspath)                   # Path('/usr/bin/curl')
 print(curl.version)                   # SemVer('8.4.0')
+print(curl.sha256)                    # 9fd780521c97365f94c90724d80a889097ae1eeb2ffce67b87869cb7e79688ec
 curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcurl/7.81.0 ...
 
 ### Example: Finding/Installing django with pip (w/ customized binpath resolution behavior)
@@ -175,6 +177,7 @@ It can define one or more `BinProvider`s that it supports, along with overrides 
 - `abspath: Path`
 - `abspaths: List[Path]`
 - `version: SemVer`
+- `sha256: str`
 
 ```python
 from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
@@ -198,6 +201,7 @@ print(ytdlp.binprovider)                  # BrewProvider(...)
 print(ytdlp.abspath)                      # Path('/opt/homebrew/bin/yt-dlp')
 print(ytdlp.abspaths)                     # [Path('/opt/homebrew/bin/yt-dlp'), Path('/usr/local/bin/yt-dlp')]
 print(ytdlp.version)                      # SemVer('2024.4.9')
+print(ytdlp.sha256)                       # 46c3518cfa788090c42e379971485f56d007a6ce366dafb0556134ca724d6a36
 print(ytdlp.is_valid)                     # True
 ```
 

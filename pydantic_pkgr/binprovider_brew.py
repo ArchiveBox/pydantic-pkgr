@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python
+#!/usr/bin/env python3
 __package__ = "pydantic_pkgr"
 
 import sys

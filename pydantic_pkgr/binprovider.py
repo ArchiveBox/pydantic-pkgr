@@ -141,7 +141,7 @@ class ShallowBinary(BaseModel):
 
     @validate_call
     def exec(
-        self, bin_name: BinName | HostBinPath = None, cmd: Iterable[str | Path | int | float | bool] = (), cwd: str | Path = ".", **kwargs
+        self, bin_name: BinName | HostBinPath = None, cmd: Iterable[str | Path | int | float | bool] = (), cwd: str | Path = ".", quiet=False, **kwargs
     ) -> subprocess.CompletedProcess:
         bin_name = str(bin_name or self.loaded_abspath or self.name)
         if bin_name == self.name:
@@ -149,6 +149,8 @@ class ShallowBinary(BaseModel):
             assert self.loaded_version, "Binary must have a loaded_version, make sure to load_or_install() first"
         assert Path(cwd).is_dir(), f"cwd must be a valid directory: {cwd}"
         cmd = [str(bin_name), *(str(arg) for arg in cmd)]
+        if not quiet:
+            print('$', ' '.join(cmd), file=sys.stderr)
         return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), **kwargs)
 
 
@@ -219,7 +221,7 @@ class BinProvider(BaseModel):
     #     )
 
     @validate_call
-    def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', **kwargs) -> CompletedProcess:
+    def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', quiet=False, **kwargs) -> CompletedProcess:
         if shutil.which(str(bin_name)):
             bin_abspath = bin_name
         else:
@@ -227,6 +229,8 @@ class BinProvider(BaseModel):
         assert bin_abspath, f'BinProvider {self.name} cannot execute bin_name {bin_name} because it could not find its abspath. (Did {self.__class__.__name__}.load_or_install({bin_name}) fail?)'
         assert Path(cwd).is_dir(), f'cwd must be a valid directory: {cwd}'
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
+        if not quiet:
+            print('$', ' '.join(cmd), file=sys.stderr)
         return run(cmd, capture_output=True, text=True, cwd=str(cwd), **kwargs)
 
     def get_default_handlers(self):

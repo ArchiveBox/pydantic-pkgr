@@ -6,7 +6,6 @@ import sys
 import platform
 from typing import Optional
 from pathlib import Path
-from subprocess import run
 
 from pydantic import model_validator, TypeAdapter
 

@@ -4,7 +4,7 @@ __package__ = 'pydantic_pkgr'
 import os
 import sys
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
 from .binprovider import BinProvider, OPERATING_SYSTEM, DEFAULT_PATH
@@ -28,13 +28,16 @@ except ImportError as err:
 
 
 
-def pyinfra_package_install(pkg_names: str, installer_module: str = "auto", installer_extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
+def pyinfra_package_install(pkg_names: str | List[str], installer_module: str = "auto", installer_extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
     if not PYINFRA_INSTALLED:
         raise RuntimeError("Pyinfra is not installed! To fix:\n    pip install pyinfra") from PYINFRA_IMPORT_ERROR
 
     config = Config()
     inventory = Inventory((["@local"], {}))
     state = State(inventory=inventory, config=config)
+
+    if isinstance(pkg_names, str):
+        pkg_names = pkg_names.split(' ')
 
     connect_all(state)
     

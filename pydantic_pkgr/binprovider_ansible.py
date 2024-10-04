@@ -5,7 +5,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
 from .binprovider import BinProvider, OPERATING_SYSTEM, DEFAULT_PATH
@@ -34,9 +34,14 @@ ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE = """
 """
 
 
-def ansible_package_install(pkg_names: str, playbook_template=ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE, installer_module='auto', state='present', quiet=True) -> str:
+def ansible_package_install(pkg_names: str | List[str], playbook_template=ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE, installer_module='auto', state='present', quiet=True) -> str:
     if not ANSIBLE_INSTALLED:
         raise RuntimeError("Ansible is not installed! To fix:\n    pip install ansible ansible-runner") from ANSIBLE_IMPORT_ERROR
+
+    if isinstance(pkg_names, str):
+        pkg_names = pkg_names.split(' ')
+    else:
+        pkg_names = list(pkg_names)
 
     if installer_module == "auto":
         if OPERATING_SYSTEM == 'darwin':

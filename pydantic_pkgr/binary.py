@@ -113,7 +113,7 @@ class Binary(ShallowBinary):
         return self.name.replace('-', '_').replace('.', '_')
 
     @validate_call
-    def install(self, binprovider_name: Optional[BinProviderName]=None) -> Self:
+    def install(self, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         providers_to_try = self.binproviders_supported
@@ -132,7 +132,7 @@ class Binary(ShallowBinary):
             if not binprovider.INSTALLER_BIN_ABSPATH:
                 continue
             try:
-                installed_bin = binprovider.install(self.name, overrides=self.provider_overrides.get(binprovider.name))
+                installed_bin = binprovider.install(self.name, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('INSTALLED', self.name, installed_bin)
                     return self.__class__.model_validate({
@@ -148,7 +148,7 @@ class Binary(ShallowBinary):
         raise outer_exc from inner_exc
 
     @validate_call
-    def load(self, cache=False, binprovider_name: Optional[BinProviderName]=None) -> Self:
+    def load(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=15) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:
@@ -168,7 +168,7 @@ class Binary(ShallowBinary):
             # if not binprovider.INSTALLER_BIN_ABSPATH:
             #     continue
             try:
-                installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name))
+                installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED', binprovider, self.name, installed_bin)
                     return self.__class__.model_validate({
@@ -186,7 +186,7 @@ class Binary(ShallowBinary):
         raise outer_exc from inner_exc
 
     @validate_call
-    def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None) -> Self:
+    def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:
@@ -205,7 +205,7 @@ class Binary(ShallowBinary):
             # if not binprovider.INSTALLER_BIN_ABSPATH:
             #     continue
             try:
-                installed_bin = binprovider.load_or_install(self.name, overrides=self.provider_overrides.get(binprovider.name), cache=cache)
+                installed_bin = binprovider.load_or_install(self.name, overrides=self.provider_overrides.get(binprovider.name), cache=cache, timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
                     return self.__class__.model_validate({

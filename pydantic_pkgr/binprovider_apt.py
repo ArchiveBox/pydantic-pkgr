@@ -20,14 +20,15 @@ class AptProvider(BinProvider):
 
     @model_validator(mode="after")
     def load_PATH_from_dpkg_install_location(self):
-        if (not self.INSTALLER_BIN_ABSPATH) or not shutil.which("dpkg") or not self.is_valid:
+        dpkg_abspath = shutil.which("dpkg")
+        if (not self.INSTALLER_BIN_ABSPATH) or not dpkg_abspath or not self.is_valid:
             # package manager is not available on this host
             # self.PATH: PATHStr = ''
             # self.INSTALLER_BIN_ABSPATH = None
             return self
 
         PATH = self.PATH
-        dpkg_install_dirs = self.exec(bin_name=shutil.which("dpkg"), cmd=["-L", "bash"]).stdout.strip().split("\n")
+        dpkg_install_dirs = self.exec(bin_name=dpkg_abspath, cmd=["-L", "bash"]).stdout.strip().split("\n")
         dpkg_bin_dirs = [path for path in dpkg_install_dirs if path.endswith("/bin")]
         for bin_dir in dpkg_bin_dirs:
             if str(bin_dir) not in PATH:

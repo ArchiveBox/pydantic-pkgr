@@ -67,7 +67,7 @@ class PipProvider(BinProvider):
         elif self.INSTALLER_BIN == "pipx":
             # restrict PATH to only use global pipx bin path
             if self.INSTALLER_BIN_ABSPATH and shutil.which(self.INSTALLER_BIN_ABSPATH):
-                proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["environment"])     # run $ pipx environment
+                proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["environment"], quiet=True, timeout=5)     # run $ pipx environment
                 if proc.returncode == 0:
                     PIPX_BIN_DIR = proc.stdout.strip().split("PIPX_BIN_DIR=")[-1].split("\n", 1)[0]
                     pip_bin_dirs = {PIPX_BIN_DIR}
@@ -159,7 +159,7 @@ class PipProvider(BinProvider):
         
         # fallback to using pip show to get the site-packages bin path
         packages = self.on_get_packages(str(bin_name)) or [str(bin_name)]
-        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages], timeout=5).stdout.strip().split('\n')
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages], timeout=5, quiet=True).stdout.strip().split('\n')
         try:
             location = [line for line in output_lines if line.startswith('Location: ')][0].split('Location: ', 1)[-1]
         except IndexError:
@@ -185,7 +185,7 @@ class PipProvider(BinProvider):
         
         # fallback to using pip show to get the version
         package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]   # assume last package in list is the main one
-        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5).stdout.strip().split('\n')
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5, quiet=True).stdout.strip().split('\n')
         try:
             version_str = [line for line in output_lines if line.startswith('Version: ')][0].split('Version: ', 1)[-1]
             return SemVer.parse(version_str)

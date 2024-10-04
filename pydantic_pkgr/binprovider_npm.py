@@ -44,7 +44,7 @@ class NpmProvider(BinProvider):
             npm_bin_dirs = {str(self.npm_prefix / 'node_modules/.bin')}
         else:
             # find all local and global npm PATHs
-            npm_local_dir = _CACHED_LOCAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix']).stdout.strip()
+            npm_local_dir = _CACHED_LOCAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix'], quiet=True).stdout.strip()
             _CACHED_LOCAL_NPM_PREFIX = npm_local_dir
 
             # start at npm_local_dir and walk up to $HOME (or /), finding all npm bin dirs along the way
@@ -61,7 +61,7 @@ class NpmProvider(BinProvider):
                 search_dir = search_dir.parent
                 num_hops += 1
             
-            npm_global_dir = _CACHED_GLOBAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g']).stdout.strip() + '/bin'    # /opt/homebrew/bin
+            npm_global_dir = _CACHED_GLOBAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix', '-g'], quiet=True).stdout.strip() + '/bin'    # /opt/homebrew/bin
             _CACHED_GLOBAL_NPM_PREFIX = npm_global_dir
             npm_bin_dirs.add(npm_global_dir)
         
@@ -115,7 +115,7 @@ class NpmProvider(BinProvider):
         # fallback to using npm show to get alternate binary names based on the package
         try:
             package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
-            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5).stdout.strip().split('\n')
+            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5, quiet=True).stdout.strip().split('\n')
             bin_name = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(', ')[0]
             abspath = bin_abspath(bin_name, PATH=self.PATH)
             if abspath:
@@ -144,7 +144,7 @@ class NpmProvider(BinProvider):
                 f'--prefix={self.npm_prefix}' if self.npm_prefix else '--global',
                 '--depth=0',
                 package,
-            ], timeout=5).stdout.strip()
+            ], timeout=5, quiet=True).stdout.strip()
             # /opt/homebrew/lib
             # └── @postlight/parser@2.2.3
             version_str = output_line.split('\n')[1].rsplit('@', 1)[-1]

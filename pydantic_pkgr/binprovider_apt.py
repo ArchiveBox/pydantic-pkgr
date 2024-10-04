@@ -28,7 +28,7 @@ class AptProvider(BinProvider):
             return self
 
         PATH = self.PATH
-        dpkg_install_dirs = self.exec(bin_name=dpkg_abspath, cmd=["-L", "bash"]).stdout.strip().split("\n")
+        dpkg_install_dirs = self.exec(bin_name=dpkg_abspath, cmd=["-L", "bash"], quiet=True).stdout.strip().split("\n")
         dpkg_bin_dirs = [path for path in dpkg_install_dirs if path.endswith("/bin")]
         for bin_dir in dpkg_bin_dirs:
             if str(bin_dir) not in PATH:

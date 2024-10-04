@@ -161,8 +161,8 @@ class BinProvider(BaseModel):
     PATH: PATHStr = Field(default=str(Path(sys.executable).parent))        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
     INSTALLER_BIN: BinName = 'env'
     
-    abspath_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
     version_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
+    abspath_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
     packages_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_packages'}, exclude=True)
     install_handler: ProviderLookupDict = Field(default={'*': 'self.on_install'}, exclude=True)
 
@@ -348,8 +348,8 @@ class BinProvider(BaseModel):
             return None
         
         return bin_abspath(bin_name, PATH=self.PATH)
-        
     def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+        
         abspath = abspath or self._abspath_cache.get(bin_name) or self.get_abspath(bin_name, quiet=True)
         if not abspath: return None
 
@@ -358,7 +358,7 @@ class BinProvider(BaseModel):
         validation_err = None
         
         # Attempt 1: $ <bin_name> --version
-        dash_dash_version_result = self.exec(bin_name=abspath, cmd=['--version'])
+        dash_dash_version_result = self.exec(bin_name=abspath, cmd=['--version'], timeout=10, quiet=True)
         dash_dash_version_out = dash_dash_version_result.stdout.strip()
         try:
             version = SemVer.parse(dash_dash_version_out)
@@ -368,7 +368,7 @@ class BinProvider(BaseModel):
             validation_err = err
         
         # Attempt 2: $ <bin_name> -version
-        dash_version_out = self.exec(bin_name=abspath, cmd=["-version"]).stdout.strip()
+        dash_version_out = self.exec(bin_name=abspath, cmd=["-version"], timeout=10, quiet=True).stdout.strip()
         try:
             version = SemVer.parse(dash_version_out)
             assert version, f"Could not parse version from $ {bin_name} -version: {dash_version_out}".strip()
@@ -377,7 +377,7 @@ class BinProvider(BaseModel):
             validation_err = validation_err or err
         
         # Attempt 3: $ <bin_name> -v
-        dash_v_out = self.exec(bin_name=abspath, cmd=["-v"]).stdout.strip()
+        dash_v_out = self.exec(bin_name=abspath, cmd=["-v"], timeout=10, quiet=True).stdout.strip()
         try:
             version = SemVer.parse(dash_v_out)
             assert version, f"Could not parse version from $ {bin_name} -v: {dash_v_out}".strip()
@@ -455,8 +455,8 @@ class BinProvider(BaseModel):
         try:
             version = self.call_handler_for_action(
                 bin_name=bin_name,
-                handler_type='version',
                 default_handler=self.on_get_version,
+                handler_type='version',
                 overrides=overrides,
                 abspath=abspath,
                 timeout=timeout,

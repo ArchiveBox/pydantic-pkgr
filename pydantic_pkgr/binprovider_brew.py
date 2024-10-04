@@ -97,7 +97,7 @@ class BrewProvider(BinProvider):
         # fallback to using brew info to get the Cellar bin path
         for package in (self.on_get_packages(str(bin_name)) or [str(bin_name)]):
             try:
-                info_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=5).stdout.strip().split('\n')
+                info_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=5, quiet=True).stdout.strip().split('\n')
                 # /opt/homebrew/Cellar/curl/8.10.0 (530 files, 4MB)
                 cellar_path = [line for line in info_lines if '/Cellar/' in line][0].rsplit(' (', 1)[0]
                 abspath = bin_abspath(bin_name, PATH=f'{cellar_path}/bin')
@@ -123,7 +123,7 @@ class BrewProvider(BinProvider):
         # fallback to using brew info to get the version
         package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]   # assume last package in list is the main one
         try:
-            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=5).stdout.strip()
+            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], quiet=True, timeout=5).stdout.strip()
             return SemVer.parse(version_str)
         except Exception:
             return None

@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
-rm -Rf dist 2>/dev/null
+echo "Bumping to version $1"
 
+rm -Rf dist 2>/dev/null
+nano pyproject.toml
+git add -p .
+git commit -m "bump version to $1"
+git tag -f "v$1"
+git push origin
+git push origin tags -f
 uv build
 uv publish

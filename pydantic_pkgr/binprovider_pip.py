@@ -111,7 +111,8 @@ class PipProvider(BinProvider):
             self.pip_venv.parent.mkdir(parents=True, exist_ok=True)
             
             # create new venv in pip_venv if it doesnt exist
-            if not (self.pip_venv / "bin" / "python").is_file():
+            venv_pip_path = self.pip_venv / "bin" / "python"
+            if not venv_pip_path.is_file():
                 import venv
                 
                 venv.create(
@@ -122,6 +123,8 @@ class PipProvider(BinProvider):
                     with_pip=True,
                     upgrade_deps=True,
                 )
+                assert venv_pip_path.is_file(), f'could not find pip inside venv after creating it: {self.pip_venv}'
+                self.exec(bin_name=venv_pip_path, cmd=["install", "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
         if self.pip_venv:

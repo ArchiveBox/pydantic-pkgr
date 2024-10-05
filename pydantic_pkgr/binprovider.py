@@ -7,7 +7,7 @@ import hashlib
 import operator
 import platform
 import subprocess
-import signal
+
 from typing import Callable, Iterable, Any, Optional, List, Dict, ClassVar, cast
 from pathlib import Path
 from subprocess import run, CompletedProcess
@@ -321,8 +321,9 @@ class BinProvider(BaseModel):
         def timeout_handler(signum, frame):
             raise TimeoutError(f'{self.__class__.__name__} Timeout while running {handler_type} for Binary {bin_name}')
 
-        signal.signal(signal.SIGALRM, handler=timeout_handler)
-        signal.alarm(timeout)
+        # signal ONLY WORKS IN MAIN THREAD, not a viable solution for timeout enforcement! breaks in prod
+        # signal.signal(signal.SIGALRM, handler=timeout_handler)
+        # signal.alarm(timeout)
         try:
             if not func_takes_args_or_kwargs(handler_func):
                 # if it's a pure argless lambdas, dont pass bin_path and other **kwargs
@@ -333,8 +334,8 @@ class BinProvider(BaseModel):
             return handler_func(bin_name, **kwargs)
         except TimeoutError:
             raise
-        finally:
-            signal.alarm(0)
+        # finally:
+        #     signal.alarm(0)
 
     def setup_PATH(self):
         for path in reversed(self.PATH.split(':')):

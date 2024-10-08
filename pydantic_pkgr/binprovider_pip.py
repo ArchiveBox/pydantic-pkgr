@@ -41,7 +41,7 @@ class PipProvider(BinProvider):
             
             # use venv pip
             venv_pip_path = self.pip_venv / "bin" / self.INSTALLER_BIN
-            if os.access(venv_pip_path, os.R_OK) and path_is_executable(venv_pip_path):
+            if os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.R_OK) and os.access(venv_pip_path, os.X_OK):
                 abspath = str(venv_pip_path)
         else:
             # use system pip
@@ -112,7 +112,7 @@ class PipProvider(BinProvider):
             
             # create new venv in pip_venv if it doesnt exist
             venv_pip_path = self.pip_venv / "bin" / "python"
-            if not os.access(venv_pip_path, os.F_OK):
+            if not (os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK)):
                 import venv
                 
                 venv.create(
@@ -123,7 +123,7 @@ class PipProvider(BinProvider):
                     with_pip=True,
                     upgrade_deps=True,
                 )
-                assert venv_pip_path.is_file(), f'could not find pip inside venv after creating it: {self.pip_venv}'
+                assert os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK), f'could not find pip inside venv after creating it: {self.pip_venv}'
                 self.exec(bin_name=venv_pip_path, cmd=["install", "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:

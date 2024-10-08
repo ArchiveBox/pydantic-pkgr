@@ -147,7 +147,7 @@ class ShallowBinary(BaseModel):
         if bin_name == self.name:
             assert self.loaded_abspath, "Binary must have a loaded_abspath, make sure to load_or_install() first"
             assert self.loaded_version, "Binary must have a loaded_version, make sure to load_or_install() first"
-        assert os.access(cwd, os.R_OK) and Path(cwd).is_dir(), f"cwd must be a valid directory: {cwd}"
+        assert os.path.isdir(cwd) and os.access(cwd, os.R_OK), f"cwd must be a valid, accessible directory: {cwd}"
         cmd = [str(bin_name), *(str(arg) for arg in cmd)]
         if not quiet:
             print('$', ' '.join(cmd), file=sys.stderr)
@@ -227,7 +227,7 @@ class BinProvider(BaseModel):
         else:
             bin_abspath = self.get_abspath(str(bin_name))
         assert bin_abspath, f'BinProvider {self.name} cannot execute bin_name {bin_name} because it could not find its abspath. (Did {self.__class__.__name__}.load_or_install({bin_name}) fail?)'
-        assert os.access(cwd, os.R_OK) and Path(cwd).is_dir(), f'cwd must be a valid directory: {cwd}'
+        assert os.access(cwd, os.R_OK) and os.path.isdir(cwd), f'cwd must be a valid, accessible directory: {cwd}'
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
         if not quiet:
             print('$', ' '.join(cmd), file=sys.stderr)

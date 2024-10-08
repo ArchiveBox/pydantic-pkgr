@@ -23,7 +23,7 @@ BinProviderName = Annotated[str, AfterValidator(validate_binprovider_name)]
 def validate_bin_dir(path: Path) -> Path:
     path = path.expanduser().absolute()
     assert path.resolve()
-    assert os.access(path, os.R_OK) and path.is_dir(), f'path entries to add to $PATH must be absolute paths to directories {dir}'
+    assert os.path.isdir(path) and os.access(path, os.R_OK), f'path entries to add to $PATH must be absolute paths to directories {dir}'
     return path
 
 BinDirPath = Annotated[Path, AfterValidator(validate_bin_dir)]
@@ -78,14 +78,14 @@ BinName = Annotated[str, AfterValidator(bin_name)]
 @validate_call
 def path_is_file(path: Path | str) -> Path:
     path = Path(path) if isinstance(path, str) else path
-    assert os.access(path, os.F_OK), f'Path is not a file: {path}'
+    assert os.path.isfile(path) and os.access(path, os.R_OK), f'Path is not a file or we dont have permission to read it: {path}'
     return path
 
 HostExistsPath = Annotated[Path, AfterValidator(path_is_file)]
 
 @validate_call
 def path_is_executable(path: HostExistsPath) -> HostExistsPath:
-    assert os.access(path, os.X_OK), f'Path is not executable (fix by running chmod +x {path})'
+    assert os.path.isfile(path) and os.access(path, os.X_OK), f'Path is not executable (fix by running chmod +x {path})'
     return path
 
 @validate_call
@@ -129,12 +129,12 @@ def bin_abspath(bin_path_or_name: str | BinName | Path, PATH: PATHStr | None=Non
             for path in PATH.split(':'):
                 bin_dir = Path(path)
                 # print('BIN_DIR', bin_dir, bin_dir.is_dir())
-                if not (os.access(bin_dir, os.R_OK) and bin_dir.is_dir()):
+                if not (os.path.isdir(bin_dir) and os.access(bin_dir, os.R_OK)):
                     # raise Exception(f'Found invalid dir in $PATH: {bin_dir}')
                     continue
                 bin_file = bin_dir / bin_path_or_name
                 # print(bin_file, path, bin_file.exists(), bin_file.is_file(), bin_file.is_symlink())
-                if os.access(bin_file, os.F_OK):
+                if os.path.isfile(bin_file) and os.access(bin_file, os.R_OK):
                     return bin_file
 
             return None

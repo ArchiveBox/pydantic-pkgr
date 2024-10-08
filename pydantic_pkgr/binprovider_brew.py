@@ -35,9 +35,9 @@ class BrewProvider(BinProvider):
 
         PATHs = set()
         
-        if OS == 'darwin' and os.access(DEFAULT_MACOS_DIR, os.R_OK):
+        if OS == 'darwin' and os.path.isdir(DEFAULT_MACOS_DIR) and os.access(DEFAULT_MACOS_DIR, os.R_OK):
             PATHs.add(str(DEFAULT_MACOS_DIR))
-        if OS != 'darwin' and os.access(DEFAULT_LINUX_DIR, os.R_OK):
+        if OS != 'darwin' and os.path.isdir(DEFAULT_LINUX_DIR) and os.access(DEFAULT_LINUX_DIR, os.R_OK):
             PATHs.add(str(DEFAULT_LINUX_DIR))
         
         if not PATHs:

@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+if [[ "$1" == "" ]]; then
+    echo "Usage: $0 <target_version>"
+    exit 1
+fi
+
 echo "Bumping to version $1"
 
 rm -Rf dist 2>/dev/null

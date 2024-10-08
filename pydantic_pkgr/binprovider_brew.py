@@ -2,6 +2,7 @@
 #!/usr/bin/env python3
 __package__ = "pydantic_pkgr"
 
+import os
 import sys
 import platform
 from typing import Optional
@@ -34,9 +35,9 @@ class BrewProvider(BinProvider):
 
         PATHs = set()
         
-        if OS == 'darwin' and DEFAULT_MACOS_DIR.exists():
+        if OS == 'darwin' and os.access(DEFAULT_MACOS_DIR, os.R_OK):
             PATHs.add(str(DEFAULT_MACOS_DIR))
-        if OS != 'darwin' and DEFAULT_LINUX_DIR.exists():
+        if OS != 'darwin' and os.access(DEFAULT_LINUX_DIR, os.R_OK):
             PATHs.add(str(DEFAULT_LINUX_DIR))
         
         if not PATHs:

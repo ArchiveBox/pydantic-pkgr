@@ -41,7 +41,7 @@ class PipProvider(BinProvider):
             
             # use venv pip
             venv_pip_path = self.pip_venv / "bin" / self.INSTALLER_BIN
-            if venv_pip_path.is_file() and path_is_executable(venv_pip_path):
+            if os.access(venv_pip_path, os.R_OK) and path_is_executable(venv_pip_path):
                 abspath = str(venv_pip_path)
         else:
             # use system pip
@@ -112,7 +112,7 @@ class PipProvider(BinProvider):
             
             # create new venv in pip_venv if it doesnt exist
             venv_pip_path = self.pip_venv / "bin" / "python"
-            if not venv_pip_path.is_file():
+            if not os.access(venv_pip_path, os.F_OK):
                 import venv
                 
                 venv.create(

@@ -1,4 +1,4 @@
-\[project]
+[project]
 name = "pydantic-pkgr"
 version = "0.4.22"
 description = "System package manager APIs in strongly typed Python"

@@ -359,16 +359,34 @@ class BinProvider(BaseModel):
         Get the handler func for a given key + Dict of handler callbacks + fallback default handler.
         e.g. get_handler_for_action(bin_name='yt-dlp', 'install', default_handler=self.on_install, ...) -> Callable
         """
+        
+        if overrides:
+            # created an updated copy of the BinProvider with the overrides applied, then get the handlers on it.
+            # important to do this so that any subsequent calls to handler functions down the call chain
+            # still have access to the overrides, we don't have to have to pass them down as args all the way down the stack
+            updated_binprovider = self.model_copy()
+            
+            if 'version' in overrides:
+                updated_binprovider.version_handler[bin_name] = overrides['version']
+            if 'abspath' in overrides:
+                updated_binprovider.abspath_handler[bin_name] = overrides['abspath']
+            if 'packages' in overrides:
+                updated_binprovider.packages_handler[bin_name] = overrides['packages']
+            if 'install' in overrides:
+                updated_binprovider.install_handler[bin_name] = overrides['install']
+            
+        else:
+            updated_binprovider = self
 
         handler_func_ref = (
             (overrides or {}).get(handler_type)
-            or self.get_handlers_for_bin(bin_name).get(handler_type)
-            or self.get_default_handlers().get(handler_type)
+            or updated_binprovider.get_handlers_for_bin(bin_name).get(handler_type)
+            or updated_binprovider.get_default_handlers().get(handler_type)
             or default_handler
         )
         # print('getting handler for action', bin_name, handler_type, handler_func)
 
-        handler_func = self.resolve_handler_func(handler_func_ref)
+        handler_func = updated_binprovider.resolve_handler_func(handler_func_ref)
 
         assert handler_func, f'No {self.name} handler func was found for {bin_name} in: {self.__class__.__name__}.'
 
@@ -376,6 +394,8 @@ class BinProvider(BaseModel):
 
     @validate_call
     def call_handler_for_action(self, bin_name: BinName, handler_type: HandlerType, default_handler: Optional[ProviderHandlerRef]=None, overrides: Optional[ProviderLookupDict]=None, timeout: int=120, **kwargs) -> Any:
+        # create a new instance of Self, with the overrides applied to the handlers dicts
+        
         handler_func: ProviderHandler = self.get_handler_for_action(
             bin_name=bin_name,
             handler_type=handler_type,

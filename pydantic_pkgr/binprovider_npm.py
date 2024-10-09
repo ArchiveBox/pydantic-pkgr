@@ -145,7 +145,7 @@ class NpmProvider(BinProvider):
         
         # fallback to using npm show to get alternate binary names based on the package
         try:
-            package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
+            package = (self.get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
             output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5, quiet=True).stdout.strip().split('\n')
             bin_name = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(', ')[0]
             abspath = bin_abspath(bin_name, PATH=self.PATH)
@@ -158,7 +158,7 @@ class NpmProvider(BinProvider):
     def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
-            version =  super().on_get_version(bin_name, abspath, **context)
+            version = super().on_get_version(bin_name, abspath, **context)
             if version:
                 return version
         except ValueError:
@@ -169,7 +169,7 @@ class NpmProvider(BinProvider):
         
         # fallback to using npm list to get the installed package version
         try:
-            package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
+            package = (self.get_packages(str(bin_name), **context) or [str(bin_name)])[-1]  # assume last package in list is the main one
             
             # remove the package version if it exists "@postslight/parser@^1.2.3" -> "@postlight/parser"
             if package[0] == '@':
@@ -187,7 +187,7 @@ class NpmProvider(BinProvider):
             ], timeout=5, quiet=True).stdout.strip()
             # /opt/homebrew/lib
             # └── @postlight/parser@2.2.3
-            version_str = output_line.split('\n')[1].rsplit('@', 1)[-1]
+            version_str = output_line.rsplit('@', 1)[-1].strip()
             return SemVer.parse(version_str)
         except Exception:
             pass

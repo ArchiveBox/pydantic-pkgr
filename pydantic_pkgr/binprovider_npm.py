@@ -167,9 +167,18 @@ class NpmProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             return None
         
-        # fallback to using npm show to get the installed package version
+        # fallback to using npm list to get the installed package version
         try:
             package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
+            
+            # remove the package version if it exists "@postslight/parser@^1.2.3" -> "@postlight/parser"
+            if package[0] == '@':
+                package = '@' + package[1:].split('@', 1)[0]
+            else:
+                package = package.split('@', 1)[0]
+                
+            # npm list --depth=0 "@postlight/parser"
+            # (dont use 'npm info @postlight/parser version', it shows *any* availabe version, not installed version)
             output_line = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
                 'list',
                 f'--prefix={self.npm_prefix}' if self.npm_prefix else '--global',

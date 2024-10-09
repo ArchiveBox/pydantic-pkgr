@@ -17,6 +17,8 @@ class AptProvider(BinProvider):
     INSTALLER_BIN: BinName = "apt-get"
 
     PATH: PATHStr = ""
+    
+    euid: Optional[int] = 0     # always run apt as root
 
     @model_validator(mode="after")
     def load_PATH_from_dpkg_install_location(self):

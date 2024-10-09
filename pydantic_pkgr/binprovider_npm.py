@@ -40,6 +40,24 @@ class NpmProvider(BinProvider):
                 return False
         
         return bool(self.INSTALLER_BIN_ABSPATH)
+    
+    @model_validator(mode='after')
+    def detect_euid_to_use(self):
+        """Detect the user (UID) to run as when executing npm (should be same as the user that owns the npm_prefix dir)"""
+        if self.euid is None:
+            # try dropping to the owner of the npm prefix dir if it exists
+            if self.npm_prefix and os.path.isdir(self.npm_prefix):
+                self.euid = os.stat(self.npm_prefix).st_uid
+
+            # try dropping to the owner of the npm binary if it's not root
+            installer_bin = self.INSTALLER_BIN_ABSPATH
+            if installer_bin:
+                self.euid = self.euid or os.stat(installer_bin).st_uid
+                
+            # fallback to the currently running user
+            self.euid = self.euid or os.geteuid()
+                    
+        return self
 
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self):

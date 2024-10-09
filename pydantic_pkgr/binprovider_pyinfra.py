@@ -3,6 +3,8 @@ __package__ = 'pydantic_pkgr'
 
 import os
 import sys
+import shutil
+from pathlib import Path
 
 from typing import Optional, Dict, Any, List
 
@@ -41,10 +43,15 @@ def pyinfra_package_install(pkg_names: str | List[str], installer_module: str = 
 
     connect_all(state)
     
+    _sudo_user = None
     if installer_module == 'auto':
         is_macos = OPERATING_SYSTEM == "darwin"
         if is_macos:
             installer_module = 'operations.brew.packages'
+            try:
+                _sudo_user = Path(shutil.which('brew')).stat().st_uid
+            except Exception:
+                pass
         else:
             installer_module = 'operations.server.packages'
     else:
@@ -61,6 +68,7 @@ def pyinfra_package_install(pkg_names: str | List[str], installer_module: str = 
         installer_module_op,
         name=f"Install system packages: {pkg_names}",
         packages=pkg_names,
+        _sudo_user=_sudo_user,
         **(installer_extra_kwargs or {}),
     )
 

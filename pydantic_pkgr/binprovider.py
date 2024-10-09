@@ -161,6 +161,8 @@ class BinProvider(BaseModel):
     PATH: PATHStr = Field(default=str(Path(sys.executable).parent))        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
     INSTALLER_BIN: BinName = 'env'
     
+    euid: Optional[int] = None
+    
     version_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_version'}, exclude=True)
     abspath_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_abspath'}, exclude=True)
     packages_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_packages'}, exclude=True)
@@ -186,6 +188,20 @@ class BinProvider(BaseModel):
     # def __repr__(self) -> str:
     #     return f'{self.name.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
     
+    @model_validator(mode='after')
+    def detect_euid_to_use(self):
+        """
+        Detect the user (UID) to run as when executing this binprovider's INSTALLER_BIN
+        e.g. homebrew should never be run as root, we can tell which user to run it as by looking at who owns its binary
+        apt should always be run as root, pip should be run as the user that owns the venv, etc.
+        """
+        if self.euid is None:
+            installer_bin = self.INSTALLER_BIN_ABSPATH
+            if installer_bin:
+                self.euid = os.stat(installer_bin).st_uid
+            else:
+                self.euid = os.geteuid()
+        return self
     
     @computed_field
     @property
@@ -262,7 +278,15 @@ class BinProvider(BaseModel):
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
         if not quiet:
             print('$', ' '.join(cmd), file=sys.stderr)
-        return run(cmd, capture_output=True, text=True, cwd=str(cwd), **kwargs)
+            
+        def drop_privileges():
+            if self.euid is not None:
+                try:
+                    os.setuid(self.euid)
+                except Exception:
+                    pass
+            
+        return run(cmd, capture_output=True, text=True, cwd=str(cwd), preexec_fn=drop_privileges, **kwargs)
 
     def get_default_handlers(self):
         return self.get_handlers_for_bin('*')

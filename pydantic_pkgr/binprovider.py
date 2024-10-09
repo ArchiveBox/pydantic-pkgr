@@ -10,6 +10,7 @@ import platform
 import subprocess
 
 from typing import Callable, Iterable, Any, Optional, List, Dict, ClassVar, cast
+from typing_extensions import Self
 from pathlib import Path
 
 from pydantic_core import ValidationError
@@ -366,6 +367,26 @@ class BinProvider(BaseModel):
         
         return only_set_handlers_for_bin
 
+    def get_provider_with_overrides(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None):
+        if not overrides:
+            return self
+    
+        # created an updated copy of the BinProvider with the overrides applied, then get the handlers on it.
+        # important to do this so that any subsequent calls to handler functions down the call chain
+        # still have access to the overrides, we don't have to have to pass them down as args all the way down the stack
+        updated_binprovider: Self = self.model_copy()
+        
+        if 'version' in overrides:
+            updated_binprovider.version_handler[bin_name] = overrides['version']
+        if 'abspath' in overrides:
+            updated_binprovider.abspath_handler[bin_name] = overrides['abspath']
+        if 'packages' in overrides:
+            updated_binprovider.packages_handler[bin_name] = overrides['packages']
+        if 'install' in overrides:
+            updated_binprovider.install_handler[bin_name] = overrides['install']
+            
+        return updated_binprovider
+
     @validate_call
     def get_handler_for_action(self, bin_name: BinName, handler_type: HandlerType, default_handler: Optional[ProviderHandlerRef]=None, overrides: Optional[ProviderLookupDict]=None) -> ProviderHandler:
         """
@@ -373,23 +394,7 @@ class BinProvider(BaseModel):
         e.g. get_handler_for_action(bin_name='yt-dlp', 'install', default_handler=self.on_install, ...) -> Callable
         """
         
-        if overrides:
-            # created an updated copy of the BinProvider with the overrides applied, then get the handlers on it.
-            # important to do this so that any subsequent calls to handler functions down the call chain
-            # still have access to the overrides, we don't have to have to pass them down as args all the way down the stack
-            updated_binprovider = self.model_copy()
-            
-            if 'version' in overrides:
-                updated_binprovider.version_handler[bin_name] = overrides['version']
-            if 'abspath' in overrides:
-                updated_binprovider.abspath_handler[bin_name] = overrides['abspath']
-            if 'packages' in overrides:
-                updated_binprovider.packages_handler[bin_name] = overrides['packages']
-            if 'install' in overrides:
-                updated_binprovider.install_handler[bin_name] = overrides['install']
-            
-        else:
-            updated_binprovider = self
+        updated_binprovider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
 
         handler_func_ref = (
             (overrides or {}).get(handler_type)
@@ -511,10 +516,12 @@ class BinProvider(BaseModel):
         return bin_abspaths(bin_name, PATH=self.PATH)
 
     @validate_call
-    def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None) -> Sha256 | None:
+    def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, overrides: Optional[ProviderLookupDict]=None) -> Sha256 | None:
         """Get the sha256 hash of the binary at the given abspath (or equivalent hash of the underlying package)"""
         
-        abspath = abspath or self.get_abspath(bin_name)
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+        
+        abspath = abspath or provider.get_abspath(bin_name)
         if not abspath or not os.access(abspath, os.R_OK):
             return None
         
@@ -530,14 +537,15 @@ class BinProvider(BaseModel):
 
     @validate_call
     def get_abspath(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=True, timeout: int=5) -> HostBinPath | None:
-        self.setup_PATH()
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+        
+        provider.setup_PATH()
         abspath = None
         try:
-            abspath = self.call_handler_for_action(
+            abspath = provider.call_handler_for_action(
                 bin_name=bin_name,
                 handler_type='abspath',
                 default_handler=self.on_get_abspath,
-                overrides=overrides,
                 timeout=timeout,
             )
         except Exception:
@@ -551,13 +559,14 @@ class BinProvider(BaseModel):
 
     @validate_call
     def get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, overrides: Optional[ProviderLookupDict]=None, quiet: bool=True, timeout: int=10) -> SemVer | None:
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+        
         version = None
         try:
-            version = self.call_handler_for_action(
+            version = provider.call_handler_for_action(
                 bin_name=bin_name,
                 default_handler=self.on_get_version,
                 handler_type='version',
-                overrides=overrides,
                 abspath=abspath,
                 timeout=timeout,
             )
@@ -576,13 +585,14 @@ class BinProvider(BaseModel):
 
     @validate_call
     def get_packages(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=True, timeout: int=5) -> InstallArgs:
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+        
         packages = None
         try:
-            packages = self.call_handler_for_action(
+            packages = provider.call_handler_for_action(
                 bin_name=bin_name,
                 handler_type='packages',
                 default_handler=self.on_get_packages,
-                overrides=overrides,
                 timeout=timeout,
             )
         except Exception:
@@ -600,18 +610,19 @@ class BinProvider(BaseModel):
 
     @validate_call
     def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=False, timeout: int=120) -> ShallowBinary | None:
-        self.setup()
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
         
-        packages = self.get_packages(bin_name, overrides=overrides, quiet=quiet)
+        provider.setup()
         
-        self.setup_PATH()
+        packages = provider.get_packages(bin_name, quiet=quiet)
+        
+        provider.setup_PATH()
         install_log = None
         try:
-            install_log = self.call_handler_for_action(
+            install_log = provider.call_handler_for_action(
                 bin_name=bin_name,
                 handler_type='install',
                 default_handler=self.on_install,
-                overrides=overrides,
                 packages=packages,
                 timeout=timeout,
             )
@@ -620,31 +631,33 @@ class BinProvider(BaseModel):
             if not quiet:
                 raise
 
-        installed_abspath = self.get_abspath(bin_name, overrides=overrides, quiet=quiet)
+        installed_abspath = provider.get_abspath(bin_name, quiet=quiet)
         if not quiet:
-            assert installed_abspath, f'{self.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={self.PATH} LOG={install_log}'
+            assert installed_abspath, f'{provider.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={provider.PATH} LOG={install_log}'
 
-        installed_version = self.get_version(bin_name, overrides=overrides, abspath=installed_abspath, quiet=quiet)
+        installed_version = provider.get_version(bin_name, abspath=installed_abspath, quiet=quiet)
         if not quiet:
-            assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
+            assert installed_version, f'{provider.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
         
-        sha256 = self.get_sha256(bin_name, abspath=installed_abspath)
+        sha256 = provider.get_sha256(bin_name, abspath=installed_abspath)
         if not quiet:
-            assert sha256, f'{self.__class__.__name__} Unable to sha256 of binary {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
+            assert sha256, f'{provider.__class__.__name__} Unable to get sha256 of binary {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
         
         result = ShallowBinary(
             name=bin_name,
-            binprovider=self,
+            binprovider=provider,
             abspath=installed_abspath,
             version=installed_version,
             sha256=sha256 or 'unknown',
-            binproviders=[self],
+            binproviders=[provider],
         ) if (installed_abspath and installed_version) else None
         self._install_cache[bin_name] = result
         return result
 
     @validate_call
     def load(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False, quiet: bool=True, timeout: int=10) -> ShallowBinary | None:
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+        
         installed_abspath = None
         installed_version = None
 
@@ -656,15 +669,15 @@ class BinProvider(BaseModel):
             installed_version = self._version_cache.get(bin_name)
 
 
-        installed_abspath = installed_abspath or self.get_abspath(bin_name, overrides=overrides, quiet=quiet, timeout=timeout)
+        installed_abspath = installed_abspath or provider.get_abspath(bin_name, quiet=quiet, timeout=timeout)
         if not installed_abspath:
             return None
 
-        installed_version = installed_version or self.get_version(bin_name, abspath=installed_abspath, overrides=overrides, quiet=quiet, timeout=timeout)
+        installed_version = installed_version or provider.get_version(bin_name, abspath=installed_abspath, quiet=quiet, timeout=timeout)
         if not installed_version:
             return None
         
-        sha256 = self.get_sha256(bin_name, abspath=installed_abspath)
+        sha256 = provider.get_sha256(bin_name, abspath=installed_abspath)
         if not sha256:
             # not ideal to store invalid sha256 but it's better than nothing
             sha256 = 'unknown'
@@ -672,18 +685,20 @@ class BinProvider(BaseModel):
 
         return ShallowBinary(
             name=bin_name,
-            binprovider=self,
+            binprovider=provider,
             abspath=installed_abspath,
             version=installed_version,
             sha256=sha256,
-            binproviders=[self],
+            binproviders=[provider],
         )
 
     @validate_call
     def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False, quiet: bool=False, timeout: int=120) -> ShallowBinary | None:
-        installed = self.load(bin_name=bin_name, overrides=overrides, cache=cache, quiet=True, timeout=15)
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+        
+        installed = provider.load(bin_name=bin_name, cache=cache, quiet=True, timeout=15)
         if not installed:
-            installed = self.install(bin_name=bin_name, overrides=overrides, quiet=quiet, timeout=timeout)
+            installed = provider.install(bin_name=bin_name, quiet=quiet, timeout=timeout)
         return installed
 
 

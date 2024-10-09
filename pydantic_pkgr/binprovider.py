@@ -2,6 +2,7 @@ __package__ = "pydantic_pkgr"
 
 import os
 import sys
+import pwd
 import shutil
 import hashlib
 import operator
@@ -288,15 +289,27 @@ class BinProvider(BaseModel):
         if not quiet:
             print('$', ' '.join(cmd), file=sys.stderr)
             
-        run_as_euid = self.EUID
+        # https://stackoverflow.com/a/6037494/2156113
+        # copy env and modify it to run the subprocess as the the designated user
+        env = kwargs.get('env', {}) or os.environ.copy()
+        pw_record = pwd.getpwuid(self.EUID)
+        run_as_uid     = pw_record.pw_uid
+        run_as_gid     = pw_record.pw_gid
+        # update environment variables so that subprocesses dont try to write to /root home directory
+        # for things like cache dirs, logs, etc. npm/pip/etc. often try to write to $HOME
+        env['PWD']      = str(cwd)
+        env['HOME']     = pw_record.pw_dir
+        env['LOGNAME']  = pw_record.pw_name
+        env['USER']     = pw_record.pw_name
+        
         def drop_privileges():
-            if run_as_euid is not None:
-                try:
-                    os.setuid(run_as_euid)
-                except Exception:
-                    pass
+            try:
+                os.setuid(run_as_uid)
+                os.setgid(run_as_gid)
+            except Exception:
+                pass
             
-        return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), preexec_fn=drop_privileges, **kwargs)
+        return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), env=env, preexec_fn=drop_privileges, **kwargs)
 
     def get_default_handlers(self):
         return self.get_handlers_for_bin('*')

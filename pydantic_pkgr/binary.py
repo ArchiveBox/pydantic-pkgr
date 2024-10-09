@@ -127,9 +127,6 @@ class Binary(ShallowBinary):
         inner_exc = Exception('No providers were available')
         errors = {}
         for binprovider in providers_to_try:
-            if not binprovider.INSTALLER_BIN_ABSPATH:
-                errors[binprovider.name] = f'No {binprovider.INSTALLER_BIN} installer bin found in $PATH'
-                continue
             try:
                 installed_bin = binprovider.install(self.name, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
@@ -164,9 +161,6 @@ class Binary(ShallowBinary):
         inner_exc = Exception('No providers were available')
         errors = {}
         for binprovider in providers_to_try:
-            if not binprovider.INSTALLER_BIN_ABSPATH:
-                errors[binprovider.name] = f'No {binprovider.INSTALLER_BIN} installer bin found in $PATH'
-                continue
             try:
                 installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
@@ -203,9 +197,6 @@ class Binary(ShallowBinary):
         inner_exc = Exception('No providers were available')
         errors = {}
         for binprovider in providers_to_try:
-            if not binprovider.INSTALLER_BIN_ABSPATH:
-                errors[binprovider.name] = f'No {binprovider.INSTALLER_BIN} installer bin found in $PATH'
-                continue
             try:
                 installed_bin = binprovider.load_or_install(self.name, overrides=self.provider_overrides.get(binprovider.name), cache=cache, timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:

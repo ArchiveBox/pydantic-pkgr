@@ -112,7 +112,8 @@ class PipProvider(BinProvider):
             
             # create new venv in pip_venv if it doesnt exist
             venv_pip_path = self.pip_venv / "bin" / "python"
-            if not (os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK)):
+            venv_pip_binary_exists = (os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK))
+            if not venv_pip_binary_exists:
                 import venv
                 
                 venv.create(

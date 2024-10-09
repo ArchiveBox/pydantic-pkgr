@@ -5,6 +5,7 @@ __package__ = "pydantic_pkgr"
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional, List
 
@@ -27,7 +28,10 @@ class NpmProvider(BinProvider):
     PATH: PATHStr = ''
     
     npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
-    npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']
+    cache_dir: Path = Path(tempfile.gettempdir()) / 'pydantic-pkgr' / 'npm'
+    
+    npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error', f'--cache={cache_dir}']
+
 
     @computed_field
     @property
@@ -104,6 +108,13 @@ class NpmProvider(BinProvider):
 
     def setup(self) -> None:
         """create npm install prefix and node_modules_dir if needed"""
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            os.system(f'chown {self.EUID} "{self.cache_dir}"')
+            os.system(f'chmod 777 "{self.cache_dir}"')     # allow all users to share cache dir
+        except Exception:
+            pass
+        
         if self.npm_prefix:
             (self.npm_prefix / 'node_modules/.bin').mkdir(parents=True, exist_ok=True)
 

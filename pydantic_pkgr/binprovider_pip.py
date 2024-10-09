@@ -7,6 +7,7 @@ import sys
 import site
 import shutil
 import sysconfig
+import tempfile
 
 from pathlib import Path
 from typing import Optional, List, Set
@@ -28,7 +29,9 @@ class PipProvider(BinProvider):
     PATH: PATHStr = ''
     
     pip_venv: Optional[Path] = None                                                         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
-    pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade
+    cache_dir: Path = Path(tempfile.gettempdir()) / 'pydantic-pkgr' / 'pip'
+    
+    pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet", f'--cache-dir={cache_dir}']  # extra args for pip install ... e.g. --upgrade
 
     @computed_field
     @property
@@ -138,6 +141,13 @@ class PipProvider(BinProvider):
     
     def setup(self):
         """create pip venv dir if needed"""
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            os.system(f'chown {self.EUID} "{self.cache_dir}"')
+            os.system(f'chmod 777 "{self.cache_dir}"')     # allow all users to share cache dir
+        except Exception:
+            pass
+        
         if self.pip_venv:
             self.pip_venv.parent.mkdir(parents=True, exist_ok=True)
             
@@ -156,7 +166,7 @@ class PipProvider(BinProvider):
                     upgrade_deps=True,
                 )
                 assert os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK), f'could not find pip inside venv after creating it: {self.pip_venv}'
-                self.exec(bin_name=venv_pip_path, cmd=["install", "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
+                self.exec(bin_name=venv_pip_path, cmd=["install", "--cache-dir={self.cache_dir}", "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
         if self.pip_venv:

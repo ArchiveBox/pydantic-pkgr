@@ -131,7 +131,7 @@ class Binary(ShallowBinary):
                 installed_bin = binprovider.install(self.name, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('INSTALLED', self.name, installed_bin)
-                    return self.__class__.model_validate({
+                    return self.__class__(**{
                         **self.model_dump(),
                         **installed_bin.model_dump(exclude=('binproviders_supported',)),
                         'loaded_binprovider': binprovider,
@@ -165,7 +165,7 @@ class Binary(ShallowBinary):
                 installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED', binprovider, self.name, installed_bin)
-                    return self.__class__.model_validate({
+                    return self.__class__(**{
                         **self.model_dump(),
                         **installed_bin.model_dump(exclude=('binproviders_supported',)),
                         'loaded_binprovider': binprovider,
@@ -201,7 +201,7 @@ class Binary(ShallowBinary):
                 installed_bin = binprovider.load_or_install(self.name, overrides=self.provider_overrides.get(binprovider.name), cache=cache, timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
-                    return self.__class__.model_validate({
+                    return self.__class__(**{
                         **self.model_dump(),
                         **installed_bin.model_dump(exclude=('binproviders_supported',)),
                         'loaded_binprovider': binprovider,

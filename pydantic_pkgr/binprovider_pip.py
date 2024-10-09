@@ -13,7 +13,7 @@ from typing import Optional, List, Set
 
 from pydantic import model_validator, TypeAdapter, computed_field
 
-from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, bin_abspaths, path_is_executable
+from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, bin_abspaths
 from .semver import SemVer
 from .binprovider import BinProvider, DEFAULT_ENV_PATH
 
@@ -29,6 +29,18 @@ class PipProvider(BinProvider):
     
     pip_venv: Optional[Path] = None                                                         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
     pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade
+
+    @computed_field
+    @property
+    def is_valid(self) -> bool:
+        """False if pip_venv is not created yet or if pip binary is not found in PATH"""
+        if self.pip_venv:
+            venv_pip_path = self.pip_venv / "bin" / "python"
+            venv_pip_binary_exists = (os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK))
+            if not venv_pip_binary_exists:
+                return False
+        
+        return bool(self.INSTALLER_BIN_ABSPATH)
 
     @computed_field
     @property

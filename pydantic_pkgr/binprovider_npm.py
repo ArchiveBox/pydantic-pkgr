@@ -3,11 +3,12 @@
 
 __package__ = "pydantic_pkgr"
 
+import os
 import sys
 from pathlib import Path
 from typing import Optional, List
 
-from pydantic import model_validator, TypeAdapter
+from pydantic import model_validator, TypeAdapter, computed_field
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath
 from .semver import SemVer
@@ -27,6 +28,18 @@ class NpmProvider(BinProvider):
     
     npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
     npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']
+
+    @computed_field
+    @property
+    def is_valid(self) -> bool:
+        """False if npm_prefix is not created yet or if npm binary is not found in PATH"""
+        if self.npm_prefix:
+            npm_bin_dir = self.npm_prefix / 'node_modules' / '.bin'
+            npm_bin_dir_exists = (os.path.isdir(npm_bin_dir) and os.access(npm_bin_dir, os.R_OK))
+            if not npm_bin_dir_exists:
+                return False
+        
+        return bool(self.INSTALLER_BIN_ABSPATH)
 
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self):

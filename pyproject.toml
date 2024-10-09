@@ -1,25 +1,17 @@
 [project]
 name = "pydantic-pkgr"
-version = "0.4.14"
+version = "0.4.15"
 description = "System package manager APIs in strongly typed Python"
 authors = [
     {name = "Nick Sweeting", email = "pydantic-pkgr-pyproject-toml@sweeting.me"},
 ]
 requires-python = ">=3.10"
 license = {text = "MIT"}
-platform = "py3-none-any"
-dependencies = [
-    "typing-extensions>=4.11.0",
-    "pydantic>=2.7.1",
-    "pydantic-core>=2.18.2",
-]
-
-packages = [
-    { include = "pydantic_pkgr" },
-]
+# platform = "py3-none-any"
+# packages = [
+#     { include = "pydantic_pkgr" },
+# ]
 readme = "README.md"
-homepage = "https://github.com/ArchiveBox/pydantic-pkgr"
-repository = "https://github.com/ArchiveBox/pydantic-pkgr"
 keywords = [
     "pydantic",
     "packagemanager",
@@ -28,10 +20,6 @@ keywords = [
     "pip",
     "system",
     "dependencies",
-]
-include = [
-    "README.md",
-    "LICENSE",
 ]
 classifiers = [
     "Programming Language :: Python",
@@ -50,8 +38,24 @@ classifiers = [
     "Intended Audience :: Developers",
     "Natural Language :: English",
 ]
-exclude = [
-    "tests",
+
+dependencies = [
+    "typing-extensions>=4.11.0",
+    "pydantic>=2.7.1",
+    "pydantic-core>=2.18.2",
+]
+
+[project.optional-dependencies]
+pyinfra = [
+    'pyinfra>=2.6.1',
+]
+ansible = [
+    'ansible',
+    'ansible-core',
+    'ansible-runner',
+]
+all = [
+    "pydantic-pkgr[pyinfra,ansible]",
 ]
 
 [build-system]

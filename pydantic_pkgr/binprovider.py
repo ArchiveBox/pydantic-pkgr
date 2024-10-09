@@ -186,27 +186,58 @@ class BinProvider(BaseModel):
     # def __repr__(self) -> str:
     #     return f'{self.name.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
     
+    
     @computed_field
     @property
     def INSTALLER_BIN_ABSPATH(self) -> HostBinPath | None:
         """Actual absolute path of the underlying package manager (e.g. /usr/local/bin/npm)"""
-        abspath = bin_abspath(self.INSTALLER_BIN, PATH=None) or shutil.which(self.INSTALLER_BIN)  # find self.INSTALLER_BIN abspath using environment path
+        abspath = bin_abspath(self.INSTALLER_BIN, PATH=self.PATH) or bin_abspath(self.INSTALLER_BIN)  # find self.INSTALLER_BIN abspath using environment path
         if not abspath:
             # underlying package manager not found on this host, return None
             return None
         return TypeAdapter(HostBinPath).validate_python(abspath)
     
+    @property
+    def INSTALLER_BINARY(self) -> ShallowBinary | None:
+        """Get the loaded binary for this binprovider's INSTALLER_BIN"""
+        
+        abspath = self.INSTALLER_BIN_ABSPATH
+        if not abspath:
+            return None
+        
+        try:
+            # try loading it from the BinProvider's own PATH (e.g. ~/test/.venv/bin/pip)
+            loaded_bin = self.load(bin_name=self.INSTALLER_BIN)
+            if loaded_bin:
+                return loaded_bin
+        except Exception:
+            pass
+        
+        env = EnvProvider()
+        try:
+            # try loading it from the env provider (e.g. /opt/homebrew/bin/pip)
+            loaded_bin = env.load(bin_name=self.INSTALLER_BIN)
+            if loaded_bin:
+                return loaded_bin
+        except Exception:
+            pass
+        
+        fallback_version = cast(SemVer, SemVer.parse('999.999.999'))  # always return something, not all installers provide a version (e.g. which)
+        version = self.get_version(bin_name=self.INSTALLER_BIN, abspath=abspath) or fallback_version
+        sha256 = self.get_sha256(bin_name=self.INSTALLER_BIN, abspath=abspath) or hashlib.sha256(b'').hexdigest()
+        
+        return ShallowBinary(
+            name=self.INSTALLER_BIN,
+            abspath=abspath,
+            binprovider=env,
+            version=version,
+            sha256=sha256,
+        )
+    
     @computed_field
     @property
     def is_valid(self) -> bool:
         return bool(self.INSTALLER_BIN_ABSPATH)
-
-    # def installer_version(self) -> SemVer | None:
-    #     """Version of the actual underlying package manager (e.g. pip v20.4.1)"""
-    #     if self.name in ('env', 'vendor'):
-    #         return SemVer('0.0.0')
-    #     installer_binpath = Path(shutil.which(self.name)).resolve()
-    #     return bin_version(installer_binpath)
 
     # def installer_host(self) -> Host:
     #     """Information about the host env, archictecture, and OS needed to select & build packages"""
@@ -349,6 +380,7 @@ class BinProvider(BaseModel):
             return None
         
         return bin_abspath(bin_name, PATH=self.PATH)
+    
     def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         
         abspath = abspath or self._abspath_cache.get(bin_name) or self.get_abspath(bin_name, quiet=True)

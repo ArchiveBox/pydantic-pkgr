@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pydantic_pkgr import (
     BinProvider, EnvProvider, Binary, SemVer, ProviderLookupDict, bin_version,
-    PipProvider, NpmProvider, AptProvider, BrewProvider, EnvProvider,
+    PipProvider, NpmProvider, AptProvider, BrewProvider,
 )
 
 
@@ -59,6 +59,7 @@ class TestBinProvider(unittest.TestCase):
         self.assertTrue(python_bin.is_executable)
         self.assertFalse(python_bin.is_script)
         self.assertTrue(bool(str(python_bin)))  # easy way to make sure serializing doesnt throw an error
+        self.assertEqual(str(python_bin.loaded_binprovider.INSTALLER_BINARY.abspath), str(shutil.which('which')))
 
 
     def test_bash_env(self):

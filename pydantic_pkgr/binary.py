@@ -142,7 +142,7 @@ class Binary(ShallowBinary):
                 # print(err)
                 inner_exc = err
                 errors[binprovider.name] = str(err)
-        raise Exception(f'None of the configured providers {", ".join(p.name for p in providers_to_try)} were able to install binary: {self.name} ERRORS={errors}') from inner_exc
+        raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to install binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
     def load(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=15) -> Self:
@@ -178,7 +178,7 @@ class Binary(ShallowBinary):
                 # print(err)
                 inner_exc = err
                 errors[binprovider.name] = str(err)
-        raise Exception(f'None of the configured providers {", ".join(p.name for p in providers_to_try)} were able to load binary: {self.name} ERRORS={errors}') from inner_exc
+        raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to load binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
     def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
@@ -215,5 +215,5 @@ class Binary(ShallowBinary):
                 inner_exc = err
                 errors[binprovider.name] = str(err)
                 continue
-        raise Exception(f'None of the configured providers {", ".join(p.name for p in providers_to_try)} were able to find or install binary: {self.name} ERRORS={errors}') from inner_exc
+        raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to find or install binary: {self.name} ERRORS={errors}') from inner_exc
         

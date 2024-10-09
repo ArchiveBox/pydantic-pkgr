@@ -545,7 +545,7 @@ class BinProvider(BaseModel):
             abspath = provider.call_handler_for_action(
                 bin_name=bin_name,
                 handler_type='abspath',
-                default_handler=self.on_get_abspath,
+                default_handler=provider.on_get_abspath,
                 timeout=timeout,
             )
         except Exception:
@@ -565,7 +565,7 @@ class BinProvider(BaseModel):
         try:
             version = provider.call_handler_for_action(
                 bin_name=bin_name,
-                default_handler=self.on_get_version,
+                default_handler=provider.on_get_version,
                 handler_type='version',
                 abspath=abspath,
                 timeout=timeout,
@@ -592,7 +592,7 @@ class BinProvider(BaseModel):
             packages = provider.call_handler_for_action(
                 bin_name=bin_name,
                 handler_type='packages',
-                default_handler=self.on_get_packages,
+                default_handler=provider.on_get_packages,
                 timeout=timeout,
             )
         except Exception:
@@ -622,7 +622,7 @@ class BinProvider(BaseModel):
             install_log = provider.call_handler_for_action(
                 bin_name=bin_name,
                 handler_type='install',
-                default_handler=self.on_install,
+                default_handler=provider.on_install,
                 packages=packages,
                 timeout=timeout,
             )

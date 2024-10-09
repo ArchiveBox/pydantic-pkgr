@@ -124,11 +124,9 @@ class Binary(ShallowBinary):
             return self
         
 
-        outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in providers_to_try)}] were able to install binary: {self.name}')
         inner_exc = Exception('No providers were available')
+        errors = {}
         for binprovider in providers_to_try:
-            if binprovider_name and binprovider.name != binprovider_name:
-                continue
             if not binprovider.INSTALLER_BIN_ABSPATH:
                 continue
             try:
@@ -145,7 +143,8 @@ class Binary(ShallowBinary):
             except Exception as err:
                 # print(err)
                 inner_exc = err
-        raise outer_exc from inner_exc
+                errors[binprovider.name] = str(err)
+        raise Exception(f'None of the configured providers {", ".join(p.name for p in providers_to_try)} were able to install binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
     def load(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=15) -> Self:
@@ -161,8 +160,8 @@ class Binary(ShallowBinary):
         if not providers_to_try:
             return self
 
-        outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in providers_to_try)}] were able to load binary: {self.name}')
         inner_exc = Exception('No providers were available')
+        errors = {}
         for binprovider in providers_to_try:
             # Do not add this because we want to be able to check for a bin in PATH even if the installer bin is not available:
             # if not binprovider.INSTALLER_BIN_ABSPATH:
@@ -183,7 +182,8 @@ class Binary(ShallowBinary):
             except Exception as err:
                 # print(err)
                 inner_exc = err
-        raise outer_exc from inner_exc
+                errors[binprovider.name] = str(err)
+        raise Exception(f'None of the configured providers {", ".join(p.name for p in providers_to_try)} were able to load binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
     def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
@@ -199,8 +199,8 @@ class Binary(ShallowBinary):
         if not providers_to_try:
             return self
 
-        outer_exc = Exception(f'None of the configured providers [{", ".join(p.name for p in providers_to_try)}] were able to find or install binary: {self.name}')
         inner_exc = Exception('No providers were available')
+        errors = {}
         for binprovider in providers_to_try:
             # if not binprovider.INSTALLER_BIN_ABSPATH:
             #     continue
@@ -220,6 +220,7 @@ class Binary(ShallowBinary):
             except Exception as err:
                 # print(err)
                 inner_exc = err
+                errors[binprovider.name] = str(err)
                 continue
-        raise outer_exc from inner_exc
+        raise Exception(f'None of the configured providers {", ".join(p.name for p in providers_to_try)} were able to find or install binary: {self.name} ERRORS={errors}') from inner_exc
         

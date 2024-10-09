@@ -200,7 +200,7 @@ class InstallTest(unittest.TestCase):
 
         PATH = provider.PATH
         bin_abspath = shutil.which(binary.name, path=PATH)
-        assert bin_abspath
+        assert bin_abspath, f'Could not find {binary.name} in PATH={PATH}'
         VERSION = SemVer.parse(subprocess.check_output(f'{bin_abspath} --version', shell=True, text=True))
         ABSPATH = Path(bin_abspath).absolute().resolve()
 
@@ -226,7 +226,8 @@ class InstallTest(unittest.TestCase):
         self.install_with_binprovider(provider, binary)
 
     def test_pip_provider(self):
-        pipprovider = PipProvider()
+        # pipprovider = PipProvider()
+        pipprovider = PipProvider(pip_venv=os.environ.get('VIRTUAL_ENV', None))
         # print(provider.PATH)
         binary = Binary(name='yt-dlp', binproviders=[pipprovider])
         self.install_with_binprovider(pipprovider, binary)

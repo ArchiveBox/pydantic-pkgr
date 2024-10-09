@@ -10,7 +10,6 @@ import subprocess
 
 from typing import Callable, Iterable, Any, Optional, List, Dict, ClassVar, cast
 from pathlib import Path
-from subprocess import run, CompletedProcess
 
 from pydantic_core import ValidationError
 from pydantic import BaseModel, Field, TypeAdapter, validate_call, ConfigDict, InstanceOf, computed_field, model_validator
@@ -188,20 +187,30 @@ class BinProvider(BaseModel):
     # def __repr__(self) -> str:
     #     return f'{self.name.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
     
-    @model_validator(mode='after')
-    def detect_euid_to_use(self):
+    @property
+    def EUID(self):
         """
         Detect the user (UID) to run as when executing this binprovider's INSTALLER_BIN
         e.g. homebrew should never be run as root, we can tell which user to run it as by looking at who owns its binary
         apt should always be run as root, pip should be run as the user that owns the venv, etc.
         """
-        if self.euid is None:
+        
+        # use user-provided value if one is set
+        if self.euid is not None:
+            return self.euid
+
+        # fallback to owner of installer binary
+        try:
             installer_bin = self.INSTALLER_BIN_ABSPATH
             if installer_bin:
-                self.euid = os.stat(installer_bin).st_uid
-            else:
-                self.euid = os.geteuid()
-        return self
+                return os.stat(installer_bin).st_uid
+        except Exception:
+            # INSTALLER_BIN_ABSPATH is not always availabe (e.g. at import time, or if it dynamically changes)
+            pass
+
+        # fallback to current user
+        return os.geteuid()
+
     
     @computed_field
     @property
@@ -268,7 +277,7 @@ class BinProvider(BaseModel):
     #     )
 
     @validate_call
-    def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', quiet=False, **kwargs) -> CompletedProcess:
+    def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', quiet=False, **kwargs) -> subprocess.CompletedProcess:
         if shutil.which(str(bin_name)):
             bin_abspath = bin_name
         else:
@@ -279,14 +288,15 @@ class BinProvider(BaseModel):
         if not quiet:
             print('$', ' '.join(cmd), file=sys.stderr)
             
+        run_as_euid = self.EUID
         def drop_privileges():
-            if self.euid is not None:
+            if run_as_euid is not None:
                 try:
-                    os.setuid(self.euid)
+                    os.setuid(run_as_euid)
                 except Exception:
                     pass
             
-        return run(cmd, capture_output=True, text=True, cwd=str(cwd), preexec_fn=drop_privileges, **kwargs)
+        return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), preexec_fn=drop_privileges, **kwargs)
 
     def get_default_handlers(self):
         return self.get_handlers_for_bin('*')

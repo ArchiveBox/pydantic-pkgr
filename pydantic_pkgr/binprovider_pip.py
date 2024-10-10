@@ -7,7 +7,7 @@ import sys
 import site
 import shutil
 import sysconfig
-import tempfile
+from platformdirs import user_cache_dir
 
 from pathlib import Path
 from typing import Optional, List, Set
@@ -17,7 +17,6 @@ from pydantic import model_validator, TypeAdapter, computed_field
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, bin_abspaths
 from .semver import SemVer
 from .binprovider import BinProvider, DEFAULT_ENV_PATH
-
 
 ACTIVE_VENV = os.getenv('VIRTUAL_ENV', None)
 _CACHED_GLOBAL_PIP_BIN_DIRS: Set[str] | None = None
@@ -29,9 +28,10 @@ class PipProvider(BinProvider):
     PATH: PATHStr = ''
     
     pip_venv: Optional[Path] = None                                                         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
-    cache_dir: Path = Path(tempfile.gettempdir()) / 'pydantic-pkgr' / 'pip'
+    cache_dir: Path = user_cache_dir(appname='pip', appauthor='pydantic-pkgr')
+    cache_arg: str = f'--cache-dir={cache_dir}'
     
-    pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet", f'--cache-dir={cache_dir}']  # extra args for pip install ... e.g. --upgrade
+    pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade
 
     @computed_field
     @property
@@ -141,12 +141,12 @@ class PipProvider(BinProvider):
     
     def setup(self):
         """create pip venv dir if needed"""
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
         try:
-            os.system(f'chown {self.EUID} "{self.cache_dir}"')
-            os.system(f'chmod 777 "{self.cache_dir}"')     # allow all users to share cache dir
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            os.system(f'chown {self.EUID} "{self.cache_dir}" 2>/dev/null') # try to ensure cache dir is writable by EUID
+            os.system(f'chmod 777 "{self.cache_dir}" 2>/dev/null')         # allow all users to share cache dir
         except Exception:
-            pass
+            self.cache_arg = '--no-cache-dir'
         
         if self.pip_venv:
             self.pip_venv.parent.mkdir(parents=True, exist_ok=True)
@@ -166,7 +166,7 @@ class PipProvider(BinProvider):
                     upgrade_deps=True,
                 )
                 assert os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK), f'could not find pip inside venv after creating it: {self.pip_venv}'
-                self.exec(bin_name=venv_pip_path, cmd=["install", "--cache-dir={self.cache_dir}", "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
+                self.exec(bin_name=venv_pip_path, cmd=["install", self.cache_arg, "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
 
     def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
         if self.pip_venv:
@@ -182,7 +182,7 @@ class PipProvider(BinProvider):
         # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
 
 
-        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", *self.pip_install_args, *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", self.cache_arg, *self.pip_install_args, *packages])
 
         if proc.returncode != 0:
             print(proc.stdout.strip())

@@ -5,12 +5,13 @@ __package__ = "pydantic_pkgr"
 
 import os
 import sys
-import tempfile
+
 from pathlib import Path
 from typing import Optional, List
 from typing_extensions import Self
 
 from pydantic import model_validator, TypeAdapter, computed_field
+from platformdirs import user_cache_dir
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath
 from .semver import SemVer
@@ -29,9 +30,10 @@ class NpmProvider(BinProvider):
     PATH: PATHStr = ''
     
     npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
-    cache_dir: Path = Path(tempfile.gettempdir()) / 'pydantic-pkgr' / 'npm'
+    cache_dir: Path = user_cache_dir(appname='npm', appauthor='pydantic-pkgr')
+    cache_arg: str = f'--cache={cache_dir}'
     
-    npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error', f'--cache={cache_dir}']
+    npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']
 
 
     @computed_field
@@ -110,12 +112,12 @@ class NpmProvider(BinProvider):
 
     def setup(self) -> None:
         """create npm install prefix and node_modules_dir if needed"""
-        self.cache_dir.mkdir(parents=True, exist_ok=True)
         try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
             os.system(f'chown {self.EUID} "{self.cache_dir}"')
             os.system(f'chmod 777 "{self.cache_dir}"')     # allow all users to share cache dir
         except Exception:
-            pass
+            self.cache_arg = '--no-cache'
         
         if self.npm_prefix:
             (self.npm_prefix / 'node_modules/.bin').mkdir(parents=True, exist_ok=True)
@@ -129,7 +131,7 @@ class NpmProvider(BinProvider):
         
         # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
         
-        install_args = [*self.npm_install_args]
+        install_args = [*self.npm_install_args, self.cache_arg]
         if self.npm_prefix:
             install_args.append(f'--prefix={self.npm_prefix}')
         else:

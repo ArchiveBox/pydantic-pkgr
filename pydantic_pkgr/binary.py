@@ -122,7 +122,7 @@ class Binary(ShallowBinary):
         raise KeyError(f'{binprovider_name} is not a supported BinProvider for Binary(name={self.name})')
 
     @validate_call
-    def install(self, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
+    def install(self, binprovider_name: Optional[BinProviderName]=None, timeout: int=120, dry_run: bool=False) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         providers_to_try = self.binproviders_supported
@@ -153,6 +153,8 @@ class Binary(ShallowBinary):
                 # print(err)
                 inner_exc = err
                 errors[binprovider.name] = str(err)
+        if dry_run:
+            return self
         raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to install binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
@@ -194,7 +196,7 @@ class Binary(ShallowBinary):
         raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to load binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
-    def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
+    def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None, timeout: int=120, dry_run: bool=False) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:
@@ -231,5 +233,8 @@ class Binary(ShallowBinary):
                 inner_exc = err
                 errors[binprovider.name] = str(err)
                 continue
+        
+        if dry_run:
+            return self
         raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to find or install binary: {self.name} ERRORS={errors}') from inner_exc
         

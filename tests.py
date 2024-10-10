@@ -5,10 +5,8 @@ import sys
 import shutil
 import unittest
 import subprocess
-
-
-
-
+from io import StringIO
+from unittest import mock
 from pathlib import Path
 
 from pydantic_pkgr import (
@@ -237,6 +235,17 @@ class InstallTest(unittest.TestCase):
         # print(provider.PATH)
         binary = Binary(name='tsx', binproviders=[npmprovider])
         self.install_with_binprovider(npmprovider, binary)
+        
+    @mock.patch("sys.stdout", new_callable=StringIO)
+    @mock.patch("subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout='', stderr=''))
+    def test_dry_run(self, mock_run, mock_stdout):
+        pipprovider = PipProvider()
+        # print(provider.PATH)
+        binary = Binary(name='yt-dlp', binproviders=[pipprovider])
+        binary.install(dry_run=True)
+            
+        mock_run.assert_not_called()
+        assert 'DRY RUN' in mock_stdout.getvalue()
 
     def test_brew_provider(self):
         # print(provider.PATH)

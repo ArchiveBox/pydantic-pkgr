@@ -156,7 +156,7 @@ class ShallowBinary(BaseModel):
 
 
 class BinProvider(BaseModel):
-    model_config = ConfigDict(extra='allow', populate_by_name=True, validate_defaults=True, validate_assignment=False, from_attributes=True, revalidate_instances='always')
+    model_config = ConfigDict(extra='forbid', populate_by_name=True, validate_defaults=True, validate_assignment=False, from_attributes=True, revalidate_instances='always')
     name: BinProviderName = ''
 
     PATH: PATHStr = Field(default=str(Path(sys.executable).parent))        # e.g.  '/opt/homebrew/bin:/opt/archivebox/bin'
@@ -169,6 +169,7 @@ class BinProvider(BaseModel):
     packages_handler: ProviderLookupDict = Field(default={'*': 'self.on_get_packages'}, exclude=True)
     install_handler: ProviderLookupDict = Field(default={'*': 'self.on_install'}, exclude=True)
 
+    _dry_run: bool = False
     _abspath_cache: ClassVar = {}
     _version_cache: ClassVar = {}
     _install_cache: ClassVar = {}
@@ -288,7 +289,8 @@ class BinProvider(BaseModel):
         assert os.access(cwd, os.R_OK) and os.path.isdir(cwd), f'cwd must be a valid, accessible directory: {cwd}'
         cmd = [str(bin_abspath), *(str(arg) for arg in cmd)]
         if not quiet:
-            print('$', ' '.join(cmd), file=sys.stderr)
+            prefix = 'DRY RUN: $' if self._dry_run else '$'
+            print(prefix, ' '.join(cmd), file=sys.stderr)
             
         # https://stackoverflow.com/a/6037494/2156113
         # copy env and modify it to run the subprocess as the the designated user
@@ -309,7 +311,10 @@ class BinProvider(BaseModel):
                 os.setgid(run_as_gid)
             except Exception:
                 pass
-            
+        
+        if self._dry_run:
+            return subprocess.CompletedProcess(cmd, 0, '', 'skipped (dry run)')
+        
         return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), env=env, preexec_fn=drop_privileges, **kwargs)
 
     def get_default_handlers(self) -> ProviderLookupDict:
@@ -367,14 +372,14 @@ class BinProvider(BaseModel):
         
         return only_set_handlers_for_bin
 
-    def get_provider_with_overrides(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> Self:
-        if not overrides:
-            return self
-    
+    def get_provider_with_overrides(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, dry_run: bool=False) -> Self:
         # created an updated copy of the BinProvider with the overrides applied, then get the handlers on it.
         # important to do this so that any subsequent calls to handler functions down the call chain
         # still have access to the overrides, we don't have to have to pass them down as args all the way down the stack
+        
         updated_binprovider: Self = self.model_copy()
+        updated_binprovider._dry_run = dry_run
+        overrides = overrides or {}
         
         if 'version' in overrides:
             updated_binprovider.version_handler[bin_name] = overrides['version']
@@ -609,9 +614,8 @@ class BinProvider(BaseModel):
         pass
 
     @validate_call
-    def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=False, timeout: int=120) -> ShallowBinary | None:
-        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
-        
+    def install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, quiet: bool=False, timeout: int=120, dry_run: bool=False) -> ShallowBinary | None:
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides, dry_run=dry_run)
         provider.setup()
         
         packages = provider.get_packages(bin_name, quiet=quiet)
@@ -627,9 +631,14 @@ class BinProvider(BaseModel):
                 timeout=timeout,
             )
         except Exception as err:
-            install_log = f'{self.__class__.__name__} Failed to install {bin_name}, got {err.__class__.__name__}: {err}'
+            install_log = f'{provider.__class__.__name__} Failed to install {bin_name}, got {err.__class__.__name__}: {err}'
             if not quiet:
                 raise
+            
+        if provider._dry_run:
+            # return immediately if we're just doing a dry run
+            # no point trying to get abspath or version if nothing was installed
+            return None
 
         installed_abspath = provider.get_abspath(bin_name, quiet=quiet)
         if not quiet:
@@ -693,8 +702,8 @@ class BinProvider(BaseModel):
         )
 
     @validate_call
-    def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False, quiet: bool=False, timeout: int=120) -> ShallowBinary | None:
-        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides)
+    def load_or_install(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None, cache: bool=False, quiet: bool=False, timeout: int=120, dry_run: bool=False) -> ShallowBinary | None:
+        provider = self.get_provider_with_overrides(bin_name=bin_name, overrides=overrides, dry_run=dry_run)
         
         installed = provider.load(bin_name=bin_name, cache=cache, quiet=True, timeout=15)
         if not installed:

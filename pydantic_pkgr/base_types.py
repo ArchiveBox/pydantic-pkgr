@@ -178,6 +178,8 @@ def bin_abspaths(bin_path_or_name: BinName | Path, PATH: PATHStr | None=None) ->
 ################## Types ##############################################
 
 def is_valid_sha256(sha256: str) -> str:
+    if sha256 == 'unknown':
+        return sha256
     assert len(sha256) == 64
     assert sha256.isalnum()
     return sha256

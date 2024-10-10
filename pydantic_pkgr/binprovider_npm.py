@@ -161,7 +161,7 @@ class NpmProvider(BinProvider):
         # fallback to using npm show to get alternate binary names based on the package
         try:
             package = (self.get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
-            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=5, quiet=True).stdout.strip().split('\n')
+            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
             bin_name = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(', ')[0]
             abspath = bin_abspath(bin_name, PATH=self.PATH)
             if abspath:
@@ -199,7 +199,7 @@ class NpmProvider(BinProvider):
                 f'--prefix={self.npm_prefix}' if self.npm_prefix else '--global',
                 '--depth=0',
                 package,
-            ], timeout=5, quiet=True).stdout.strip()
+            ], timeout=self._version_timeout, quiet=True).stdout.strip()
             # /opt/homebrew/lib
             # └── @postlight/parser@2.2.3
             version_str = output_line.rsplit('@', 1)[-1].strip()

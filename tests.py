@@ -77,73 +77,97 @@ class TestBinProvider(unittest.TestCase):
     def test_overrides(self):
         
         class TestRecord:
-            called_abspath_custom = False
-            called_version_custom = False
-            called_packages_custom = False
-            called_install_custom = False
+            called_default_abspath_getter = False
+            called_default_version_getter = False
+            called_default_packages_getter = False
+            called_custom_install_handler = False
 
+        def custom_version_getter():
+            return '1.2.3'
+        
+        def custom_abspath_getter(self, bin_name, **context):
+            assert self.__class__.__name__ == 'CustomProvider'
+            return '/usr/bin/true'
 
         class CustomProvider(BinProvider):
             name: str = 'CustomProvider'
 
             abspath_handler: ProviderLookupDict = {
-                '*': 'self.on_abspath_custom'
+                '*': 'self.default_abspath_getter',   # test func referenced via dotted notation on self.
+                'somebin': custom_abspath_getter,     # test func that takes self, bin_name, and **context
             }
             version_handler: ProviderLookupDict = {
-                '*': 'self.on_version_custom'
+                '*': 'self.default_version_getter',
+                'somebin': custom_version_getter,     # test pure func that takes no args
             }
             packages_handler: ProviderLookupDict = {
-                '*': 'self.on_packages_custom'
+                '*': 'self.default_packages_getter',
+                'abc': 'self.alternate_packages_getter',
+                'somebin': ['literal', 'return', 'value'],            # test literal return value
             }
             install_handler: ProviderLookupDict = {
-                '*': 'does.not.exist'
+                '*': None                             # test no handlers available
             }
 
             @staticmethod
-            def on_abspath_custom():
-                TestRecord.called_abspath_custom = True
-                return Path(shutil.which('python'))
+            def default_abspath_getter():
+                TestRecord.called_default_abspath_getter = True
+                return '/bin/bash'
 
-            def on_version_custom(self, bin_name: str, **context):
-                TestRecord.called_version_custom = True
-                return bin_version(self.get_abspath(bin_name))
+            def default_version_getter(self, bin_name: str, **context):
+                TestRecord.called_default_version_getter = True
+                return '999.999.999'
 
             @classmethod
-            def on_packages_custom(self, bin_name: str, **context):
-                TestRecord.called_packages_custom = True
+            def default_packages_getter(cls, bin_name: str, **context):
+                TestRecord.called_default_packages_getter = True
+                return None
+            
+            @classmethod
+            def alternate_packages_getter(cls, bin_name: str, **context):
+                TestRecord.called_default_packages_getter = True
+                return ['abc', 'def']
 
             def on_install(self, bin_name: str, **context):
                 raise NotImplementedError('whattt')
 
-            def on_install_somebin(self, bin_name: str, **context):
-                TestRecord.called_install_custom = True
-
         provider = CustomProvider(install_handler={'somebin': 'self.on_install_somebin'})
 
-        self.assertFalse(TestRecord.called_abspath_custom)
-        self.assertFalse(TestRecord.called_version_custom)
-        self.assertFalse(TestRecord.called_packages_custom)
-        self.assertFalse(TestRecord.called_install_custom)
+        self.assertFalse(TestRecord.called_default_abspath_getter)
+        self.assertFalse(TestRecord.called_default_version_getter)
+        self.assertFalse(TestRecord.called_default_packages_getter)
+        self.assertFalse(TestRecord.called_custom_install_handler)
 
-        provider.get_abspath('doesnotexist')
-        self.assertTrue(TestRecord.called_abspath_custom)
+        # test default abspath getter
+        self.assertEqual(provider.get_abspath('doesnotexist'), Path('/bin/bash'))
+        self.assertTrue(TestRecord.called_default_abspath_getter)
+        
+        # test custom abspath getter
+        self.assertEqual(provider.get_abspath('somebin'), Path('/usr/bin/true'))    # test that Callable getter that takes self, bin_name, **context works + result is auto-cast to Path
+        
+        # test default version getter
+        self.assertEqual(provider.get_version('doesnotexist'), SemVer('999.999.999'))  # test that normal 'self.some_method' dot referenced getter works and result is auto-cast to SemVer
+        self.assertTrue(TestRecord.called_default_version_getter)
 
-        provider.get_version('doesnotexist')
-        self.assertTrue(TestRecord.called_version_custom)
-
-        provider.get_packages('doesnotexist')
-        self.assertTrue(TestRecord.called_packages_custom)
-
+        # test custom version getter
+        self.assertEqual(provider.get_version('somebin'), SemVer('1.2.3'))         # test that remote Callable func getter that takes no args works and str result is auto-cast to SemVer
+        
+        # test default packages getter
+        self.assertEqual(provider.get_packages('doesnotexist'), ['doesnotexist'])  # test that it fallsback to [bin_name] by default if getter returns None
+        self.assertTrue(TestRecord.called_default_packages_getter)
+        self.assertEqual(provider.get_packages('abc'), ['abc', 'def'])             # test that classmethod getter funcs work
+        
+        # test custom packages getter
+        self.assertEqual(provider.get_packages('somebin'), ['literal', 'return', 'value'])  # test that literal return values in overrides work     
+        
+        # test install handler
         exc = None
         try:
             provider.install('doesnotexist')
         except Exception as err:
             exc = err
-        self.assertIsInstance(exc, NotImplementedError)
-        self.assertFalse(TestRecord.called_install_custom)
-
-        provider.install('somebin')
-        self.assertTrue(TestRecord.called_install_custom)
+        self.assertIsInstance(exc, AssertionError)
+        self.assertTrue('No CustomProvider handler func was found for doesnotexist' in str(exc))
 
 
 class TestBinary(unittest.TestCase):
@@ -235,17 +259,21 @@ class InstallTest(unittest.TestCase):
         # print(provider.PATH)
         binary = Binary(name='tsx', binproviders=[npmprovider])
         self.install_with_binprovider(npmprovider, binary)
-        
-    @mock.patch("sys.stdout", new_callable=StringIO)
+    
+    @mock.patch("sys.stderr")    
     @mock.patch("subprocess.run", return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout='', stderr=''))
-    def test_dry_run(self, mock_run, mock_stdout):
+    def test_dry_run_doesnt_exec(self, mock_run, _mock_stderr):
+        pipprovider = PipProvider().get_provider_with_overrides(dry_run=True)
+        pipprovider.install(bin_name='doesnotexist')
+        mock_run.assert_not_called()
+        
+    @mock.patch("sys.stderr", new_callable=StringIO)
+    def test_dry_run_prints_stderr(self, mock_stderr):
         pipprovider = PipProvider()
-        # print(provider.PATH)
-        binary = Binary(name='yt-dlp', binproviders=[pipprovider])
+        binary = Binary(name='doesnotexist', binproviders=[pipprovider])
         binary.install(dry_run=True)
             
-        mock_run.assert_not_called()
-        assert 'DRY RUN' in mock_stdout.getvalue()
+        assert 'DRY RUN' in mock_stderr.getvalue()
 
     def test_brew_provider(self):
         # print(provider.PATH)

@@ -111,6 +111,15 @@ class Binary(ShallowBinary):
     @property
     def python_name(self) -> str:
         return self.name.replace('-', '_').replace('.', '_')
+    
+    @validate_call
+    def get_binprovider_with_overrides(self, binprovider_name: BinProviderName, dry_run: bool=False) -> InstanceOf[BinProvider]:
+        for binprovider in self.binproviders_supported:
+            if binprovider.name == binprovider_name:
+                overrides = self.provider_overrides.get(binprovider_name, {})
+                return binprovider.get_provider_with_overrides(bin_name=self.name, overrides=overrides, dry_run=dry_run)
+
+        raise KeyError(f'{binprovider_name} is not a supported BinProvider for Binary(name={self.name})')
 
     @validate_call
     def install(self, binprovider_name: Optional[BinProviderName]=None, timeout: int=120) -> Self:
@@ -123,18 +132,20 @@ class Binary(ShallowBinary):
         if not providers_to_try:
             return self
         
-
         inner_exc = Exception('No providers were available')
         errors = {}
         for binprovider in providers_to_try:
             try:
-                installed_bin = binprovider.install(self.name, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
+                provider = self.get_binprovider_with_overrides(binprovider.name, dry_run=dry_run)
+                assert provider._dry_run == dry_run
+                
+                installed_bin = provider.install(self.name, timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('INSTALLED', self.name, installed_bin)
                     return self.__class__(**{
                         **self.model_dump(),
-                        **installed_bin.model_dump(exclude=('binproviders_supported',)),
-                        'loaded_binprovider': binprovider,
+                        **installed_bin.model_dump(exclude={'binproviders_supported'}),
+                        'loaded_binprovider': provider,
                         'binproviders_supported': self.binproviders_supported,
                         'provider_overrides': self.provider_overrides,
                     })
@@ -162,13 +173,15 @@ class Binary(ShallowBinary):
         errors = {}
         for binprovider in providers_to_try:
             try:
-                installed_bin = binprovider.load(self.name, cache=cache, overrides=self.provider_overrides.get(binprovider.name), timeout=timeout)
+                provider = self.get_binprovider_with_overrides(binprovider.name)
+                
+                installed_bin = provider.load(self.name, cache=cache, timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED', binprovider, self.name, installed_bin)
                     return self.__class__(**{
                         **self.model_dump(),
-                        **installed_bin.model_dump(exclude=('binproviders_supported',)),
-                        'loaded_binprovider': binprovider,
+                        **installed_bin.model_dump(exclude={'binproviders_supported'}),
+                        'loaded_binprovider': provider,
                         'binproviders_supported': self.binproviders_supported,
                         'provider_overrides': self.provider_overrides,
                     })
@@ -198,13 +211,16 @@ class Binary(ShallowBinary):
         errors = {}
         for binprovider in providers_to_try:
             try:
-                installed_bin = binprovider.load_or_install(self.name, overrides=self.provider_overrides.get(binprovider.name), cache=cache, timeout=timeout)
+                provider = self.get_binprovider_with_overrides(binprovider.name, dry_run=dry_run)
+                assert provider._dry_run == dry_run
+                
+                installed_bin = provider.load_or_install(self.name, cache=cache, timeout=timeout)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
                     return self.__class__(**{
                         **self.model_dump(),
-                        **installed_bin.model_dump(exclude=('binproviders_supported',)),
-                        'loaded_binprovider': binprovider,
+                        **installed_bin.model_dump(exclude={'binproviders_supported'}),
+                        'loaded_binprovider': provider,
                         'binproviders_supported': self.binproviders_supported,
                         'provider_overrides': self.provider_overrides,
                     })

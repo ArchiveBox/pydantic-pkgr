@@ -87,7 +87,7 @@ class ShallowBinary(BaseModel):
         return super().__getattr__(item)
 
     @model_validator(mode="after")
-    def validate(self):
+    def validate(self) -> Self:
         self.description = self.description or self.name
         return self
 
@@ -190,7 +190,7 @@ class BinProvider(BaseModel):
     #     return f'{self.name.title()}Provider[{self.INSTALLER_BIN_ABSPATH or self.INSTALLER_BIN})]'
     
     @property
-    def EUID(self):
+    def EUID(self) -> int:
         """
         Detect the user (UID) to run as when executing this binprovider's INSTALLER_BIN
         e.g. homebrew should never be run as root, we can tell which user to run it as by looking at who owns its binary
@@ -312,7 +312,7 @@ class BinProvider(BaseModel):
             
         return subprocess.run(cmd, capture_output=True, text=True, cwd=str(cwd), env=env, preexec_fn=drop_privileges, **kwargs)
 
-    def get_default_handlers(self):
+    def get_default_handlers(self) -> ProviderLookupDict:
         return self.get_handlers_for_bin('*')
 
     def resolve_handler_func(self, handler_func: ProviderHandlerRef | None) -> ProviderHandler | None:
@@ -367,7 +367,7 @@ class BinProvider(BaseModel):
         
         return only_set_handlers_for_bin
 
-    def get_provider_with_overrides(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None):
+    def get_provider_with_overrides(self, bin_name: BinName, overrides: Optional[ProviderLookupDict]=None) -> Self:
         if not overrides:
             return self
     
@@ -421,8 +421,8 @@ class BinProvider(BaseModel):
             overrides=overrides,
         )
 
-        def timeout_handler(signum, frame):
-            raise TimeoutError(f'{self.__class__.__name__} Timeout while running {handler_type} for Binary {bin_name}')
+        # def timeout_handler(signum, frame):
+            # raise TimeoutError(f'{self.__class__.__name__} Timeout while running {handler_type} for Binary {bin_name}')
 
         # signal ONLY WORKS IN MAIN THREAD, not a viable solution for timeout enforcement! breaks in prod
         # signal.signal(signal.SIGALRM, handler=timeout_handler)
@@ -440,7 +440,7 @@ class BinProvider(BaseModel):
         # finally:
         #     signal.alarm(0)
 
-    def setup_PATH(self):
+    def setup_PATH(self) -> None:
         for path in reversed(self.PATH.split(':')):
             if path not in sys.path:
                 sys.path.insert(0, path)   # e.g. /opt/archivebox/bin:/bin:/usr/local/bin:...
@@ -718,13 +718,13 @@ class EnvProvider(BinProvider):
     }
 
     @staticmethod
-    def get_python_abspath():
+    def get_python_abspath() -> HostBinPath:
         return Path(sys.executable)
 
     @staticmethod
-    def get_python_version():
+    def get_python_version() -> str:
         return '{}.{}.{}'.format(*sys.version_info[:3])
 
     def on_install(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context) -> str:
         """The env BinProvider is ready-only and does not install any packages, so this is a no-op"""
-        return ''
+        return 'env is ready-only and just checks for existing binaries in $PATH'

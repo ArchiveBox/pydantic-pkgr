@@ -11,7 +11,7 @@ import tempfile
 
 from pathlib import Path
 from typing import Optional, List, Set
-
+from typing_extensions import Self
 from pydantic import model_validator, TypeAdapter, computed_field
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath, bin_abspaths
@@ -69,7 +69,7 @@ class PipProvider(BinProvider):
         return TypeAdapter(HostBinPath).validate_python(abspath)
 
     @model_validator(mode='after')
-    def detect_euid_to_use(self):
+    def detect_euid_to_use(self) -> Self:
         """Detect the user (UID) to run as when executing pip (should be same as the user that owns the pip_venv dir)"""
         
         if self.euid is None:
@@ -88,7 +88,7 @@ class PipProvider(BinProvider):
         return self
 
     @model_validator(mode="after")
-    def load_PATH_from_pip_sitepackages(self):
+    def load_PATH_from_pip_sitepackages(self) -> Self:
         global _CACHED_GLOBAL_PIP_BIN_DIRS
         PATH = self.PATH
 

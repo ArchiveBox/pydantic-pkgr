@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 __package__ = "pydantic_pkgr"
 
@@ -8,6 +8,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Optional, List
+from typing_extensions import Self
 
 from pydantic import model_validator, TypeAdapter, computed_field
 
@@ -46,7 +47,7 @@ class NpmProvider(BinProvider):
         return bool(self.INSTALLER_BIN_ABSPATH)
     
     @model_validator(mode='after')
-    def detect_euid_to_use(self):
+    def detect_euid_to_use(self) -> Self:
         """Detect the user (UID) to run as when executing npm (should be same as the user that owns the npm_prefix dir)"""
         if self.euid is None:
             # try dropping to the owner of the npm prefix dir if it exists
@@ -64,12 +65,13 @@ class NpmProvider(BinProvider):
         return self
 
     @model_validator(mode='after')
-    def load_PATH_from_npm_prefix(self):
+    def load_PATH_from_npm_prefix(self) -> Self:
         global _CACHED_GLOBAL_NPM_PREFIX
         global _CACHED_LOCAL_NPM_PREFIX
         
         if not self.INSTALLER_BIN_ABSPATH:
-            return TypeAdapter(PATHStr).validate_python('')
+            self.PATH = TypeAdapter(PATHStr).validate_python('')
+            return self
         
         PATH = self.PATH
         npm_bin_dirs = set()

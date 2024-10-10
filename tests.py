@@ -9,8 +9,10 @@ from io import StringIO
 from unittest import mock
 from pathlib import Path
 
+# from rich import print
+
 from pydantic_pkgr import (
-    BinProvider, EnvProvider, Binary, SemVer, ProviderLookupDict, bin_version,
+    BinProvider, EnvProvider, Binary, SemVer, ProviderLookupDict,
     PipProvider, NpmProvider, AptProvider, BrewProvider,
 )
 

@@ -150,7 +150,7 @@ class NpmProvider(BinProvider):
             print(proc.stderr.strip())
             raise Exception(f'{self.__class__.__name__}: install got returncode {proc.returncode} while installing {packages}: {packages}')
         
-        return proc.stderr.strip() + '\n' + proc.stdout.strip()
+        return (proc.stderr.strip() + '\n' + proc.stdout.strip()).strip()
     
     def default_abspath_handler(self, bin_name: BinName, **context) -> HostBinPath | None:
         # print(self.__class__.__name__, 'on_get_abspath', bin_name)
@@ -233,10 +233,10 @@ class NpmProvider(BinProvider):
             #     }
             #   }
             # }
-            version_str = json.loads(json_output)['dependencies'][main_package]['version']
+            version_str = json.loads(json_output)['dependencies'][package]['version']
             return SemVer.parse(version_str)
         except Exception:
-            pass
+            raise
         return None
 
 if __name__ == "__main__":

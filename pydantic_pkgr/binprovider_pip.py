@@ -7,6 +7,7 @@ import sys
 import site
 import shutil
 import sysconfig
+import subprocess
 from platformdirs import user_cache_path
 
 from pathlib import Path

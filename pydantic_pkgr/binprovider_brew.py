@@ -106,8 +106,10 @@ class BrewProvider(BinProvider):
         # because it might conflict with a system binary of the same name (e.g. /usr/bin/curl)
         # so we need to check for the binary in the namespaced opt dir and Cellar paths as well
         extra_path = self.PATH.replace('/bin', '/opt/{bin_name}/bin')     # e.g. /opt/homebrew/opt/curl/bin/curl
-        cellar_paths = ':'.join(str(path) for path in (self.brew_prefix / 'Cellar' / bin_name).glob('*/bin'))
         search_paths = f'{self.PATH}:{extra_path}'
+        
+        # add unlinked Cellar paths,e.g. /opt/homebrew/Cellar/curl/8.10.1/bin
+        cellar_paths = ':'.join(str(path) for path in (self.brew_prefix / 'Cellar' / bin_name).glob('*/bin'))
         if cellar_paths:
             search_paths += ':' + cellar_paths
         
@@ -158,6 +160,7 @@ class BrewProvider(BinProvider):
 
         # shortcut: if we already have the Cellar abspath, extract the version from it
         if abspath and '/Cellar/' in str(abspath):
+            # /opt/homebrew/Cellar/curl/8.10.1/bin/curl -> 8.10.1
             version = str(abspath).rsplit(f'/bin/{bin_name}', 1)[0].rsplit('/', 1)[-1]
             if version:
                 try:
@@ -165,7 +168,7 @@ class BrewProvider(BinProvider):
                 except ValueError:
                     pass
 
-        # fallback to running ${bin_name} --version
+        # fallback to running $ <bin_name> --version
         try:
             version =  super().default_version_handler(bin_name, abspath=abspath, **context)
             if version:

@@ -5,6 +5,7 @@ __package__ = "pydantic_pkgr"
 
 import os
 import sys
+import json
 
 from pathlib import Path
 from typing import Optional, List
@@ -138,7 +139,11 @@ class NpmProvider(BinProvider):
         else:
             install_args.append('--global')
         
-        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", *install_args, *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+            "install",
+            *install_args,
+            *packages,
+        ])
         
         if proc.returncode != 0:
             print(proc.stdout.strip())
@@ -149,6 +154,8 @@ class NpmProvider(BinProvider):
     
     def default_abspath_handler(self, bin_name: BinName, **context) -> HostBinPath | None:
         # print(self.__class__.__name__, 'on_get_abspath', bin_name)
+        
+        # try searching for the bin_name in BinProvider.PATH first (fastest)
         try:
             abspath = super().default_abspath_handler(bin_name, **context)
             if abspath:
@@ -159,17 +166,28 @@ class NpmProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             return None
         
-        # fallback to using npm show to get alternate binary names based on the package
+        # fallback to using npm show to get alternate binary names based on the package, then try to find those in BinProvider.PATH
         try:
             packages = self.get_packages(str(bin_name)) or [str(bin_name)]
             main_package = packages[0]   # assume first package in list is the main one
-            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', main_package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
-            # bin: mercury-parser, postlight-parser
-            bin_names = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(',')
-            main_bin = bin_names[0]  # assumes first bin name listed is the main one
-            abspath = bin_abspath(main_bin, PATH=self.PATH)
-            if abspath:
-                return TypeAdapter(HostBinPath).validate_python(abspath)
+            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+                'show',
+                '--json',
+                main_package,
+            ], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+            # { ...
+            #   "version": "2.2.3",
+            #   "bin": {
+            #     "mercury-parser": "cli.js",
+            #     "postlight-parser": "cli.js"
+            #   },
+            #   ...
+            # }
+            alt_bin_names = json.loads(output_lines[0])['bin'].keys()
+            for alt_bin_name in alt_bin_names:
+                abspath = bin_abspath(alt_bin_name, PATH=self.PATH)
+                if abspath:
+                    return TypeAdapter(HostBinPath).validate_python(abspath)
         except Exception:
             pass        
         return None
@@ -197,17 +215,25 @@ class NpmProvider(BinProvider):
             else:
                 package = main_package.split('@', 1)[0]
                 
-            # npm list --depth=0 "@postlight/parser"
+            # npm list --depth=0 --json --prefix=<prefix> "@postlight/parser"
             # (dont use 'npm info @postlight/parser version', it shows *any* availabe version, not installed version)
-            output_line = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+            json_output = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
                 'list',
                 f'--prefix={self.npm_prefix}' if self.npm_prefix else '--global',
                 '--depth=0',
+                '--json',
                 package,
             ], timeout=self._version_timeout, quiet=True).stdout.strip()
-            # /opt/homebrew/lib
-            # └── @postlight/parser@2.2.3
-            version_str = output_line.rsplit('@', 1)[-1].strip()
+            # {
+            #   "name": "lib",
+            #   "dependencies": {
+            #     "@postlight/parser": {
+            #       "version": "2.2.3",
+            #       "overridden": false
+            #     }
+            #   }
+            # }
+            version_str = json.loads(json_output)['dependencies'][main_package]['version']
             return SemVer.parse(version_str)
         except Exception:
             pass

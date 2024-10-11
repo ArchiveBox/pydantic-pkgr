@@ -61,7 +61,7 @@ class BrewProvider(BinProvider):
         from .binprovider_pyinfra import PYINFRA_INSTALLED, pyinfra_package_install
 
         if PYINFRA_INSTALLED:
-            return pyinfra_package_install(bin_name, installer_module="operations.brew.packages")
+            return pyinfra_package_install((bin_name,), installer_module="operations.brew.packages")
 
         # Attempt 2: Try installing with Ansible
         from .binprovider_ansible import ANSIBLE_INSTALLED, ansible_package_install
@@ -114,7 +114,7 @@ class BrewProvider(BinProvider):
     def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
-            version =  self.get_version(bin_name, abspath, **context)
+            version =  self.get_version(bin_name, abspath=abspath, **context)
             if version:
                 return version
         except ValueError:

@@ -158,7 +158,7 @@ class Binary(ShallowBinary):
         raise Exception(f'None of the configured providers ({provider_names}) were able to install binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
-    def load(self, cache=False, binproviders: Optional[Iterable[BinProviderName]]=None, **extra_overrides) -> Self:
+    def load(self, binproviders: Optional[Iterable[BinProviderName]]=None, nocache=False, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         # if we're already loaded, skip loading
@@ -179,7 +179,7 @@ class Binary(ShallowBinary):
             try:
                 provider = self.get_binprovider(binprovider_name=binprovider.name, **extra_overrides)
                 
-                installed_bin = provider.load(self.name, cache=cache)
+                installed_bin = provider.load(self.name, nocache=nocache)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED', binprovider, self.name, installed_bin)
                     return self.__class__(**{
@@ -200,7 +200,7 @@ class Binary(ShallowBinary):
         raise Exception(f'None of the configured providers ({provider_names}) were able to load binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
-    def load_or_install(self, cache=False, binproviders: Optional[Iterable[BinProviderName]]=None, **extra_overrides) -> Self:
+    def load_or_install(self, binproviders: Optional[Iterable[BinProviderName]]=None, nocache=False, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:
@@ -218,7 +218,7 @@ class Binary(ShallowBinary):
             try:
                 provider = self.get_binprovider(binprovider_name=binprovider.name, **extra_overrides)
                 
-                installed_bin = provider.load_or_install(self.name, cache=cache)
+                installed_bin = provider.load_or_install(self.name, nocache=nocache)
                 if installed_bin is not None and installed_bin.loaded_abspath:
                     # print('LOADED_OR_INSTALLED', self.name, installed_bin)
                     return self.__class__(**{

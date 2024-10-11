@@ -205,7 +205,7 @@ def is_name_of_method_on_self(method_name: str) -> str:
     assert method_name.startswith('self.') and method_name.replace('.', '').replace('_', '').isalnum()
     return method_name
 
-InstallArgs = Annotated[Tuple[str, ...], AfterValidator(is_valid_install_args)]
+InstallArgs = Annotated[Tuple[str, ...] | List[str], AfterValidator(is_valid_install_args)]
 
 SelfMethodName = Annotated[str, AfterValidator(is_name_of_method_on_self)]
 

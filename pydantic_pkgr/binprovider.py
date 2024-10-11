@@ -7,12 +7,11 @@ import shutil
 import hashlib
 import platform
 import subprocess
+import functools
 
-from types import MappingProxyType
-from typing import Callable, Iterable, Optional, List, cast, final
+from typing import Callable, Iterable, Optional, List, cast, final, Dict, Any
 from typing_extensions import Self
 from pathlib import Path
-from functools import lru_cache
 
 from pydantic_core import ValidationError
 from pydantic import BaseModel, Field, TypeAdapter, validate_call, ConfigDict, InstanceOf, computed_field, model_validator
@@ -54,17 +53,42 @@ PYTHON_BIN_DIR = str(Path(sys.executable).parent)
 if PYTHON_BIN_DIR not in DEFAULT_ENV_PATH:
     DEFAULT_ENV_PATH = PYTHON_BIN_DIR + ":" + DEFAULT_ENV_PATH
 
+UNKNOWN_ABSPATH = Path('/usr/bin/true')
+UNKNOWN_VERSION = SemVer('999.999.999')
 
 ################## VALIDATORS #######################################
 
+NEVER_CACHE = (
+    None,
+    UNKNOWN_ABSPATH,
+    UNKNOWN_VERSION,
+    UNKNOWN_SHA256,
+)
 
-# class Host(BaseModel):
-#     machine: str
-#     system: str
-#     platform: str
-#     in_docker: bool
-#     in_qemu: bool
-#     python: str
+def binprovider_cache(binprovider_method):
+    'LRU Cache decorator that keeps a weak reference to "self"'
+
+    method_name = binprovider_method.__name__
+    
+    @functools.wraps(binprovider_method)
+    def cached_function(self, bin_name: BinName, **kwargs):
+        self._cache = self._cache or {}
+        self._cache[method_name] = self._cache.get(method_name, {})
+        method_cache = self._cache[method_name]
+        
+        if bin_name in method_cache and not kwargs.get('nocache'):
+            # print('USING CACHED VALUE:', f'{self.__class__.__name__}.{method_name}({bin_name}, {kwargs}) -> {method_cache[bin_name]}')
+            return method_cache[bin_name]
+        
+        return_value = binprovider_method(self, bin_name, **kwargs)
+        
+        if return_value and return_value not in NEVER_CACHE:
+            self._cache[method_name][bin_name] = return_value
+        return return_value
+    
+    cached_function.__name__ = f'{method_name}_cached'
+    
+    return cached_function
 
 
 class ShallowBinary(BaseModel):
@@ -186,6 +210,7 @@ class BinProvider(BaseModel):
     _dry_run: bool = False
     _install_timeout: int = 120
     _version_timeout: int = 10
+    _cache: Dict[str, Dict[str, Any]] | None = None
     
     @property
     def EUID(self) -> int:
@@ -247,7 +272,7 @@ class BinProvider(BaseModel):
         except Exception:
             pass
         
-        fallback_version = cast(SemVer, SemVer.parse('999.999.999'))  # always return something, not all installers provide a version (e.g. which)
+        fallback_version = cast(SemVer, UNKNOWN_VERSION)  # always return something, not all installers provide a version (e.g. which)
         version = self.get_version(bin_name=self.INSTALLER_BIN, abspath=abspath) or fallback_version
         sha256 = self.get_sha256(bin_name=self.INSTALLER_BIN, abspath=abspath) or hashlib.sha256(b'').hexdigest()
         
@@ -487,18 +512,18 @@ class BinProvider(BaseModel):
     # CALLING API, DONT OVERRIDE THESE:
 
     @final
+    @binprovider_cache
     @validate_call
-    # @lru_cache(maxsize=1024)  (see __init__)
-    def get_abspaths(self, bin_name: BinName) -> List[HostBinPath]:
+    def get_abspaths(self, bin_name: BinName, nocache: bool=False) -> List[HostBinPath]:
         return bin_abspaths(bin_name, PATH=self.PATH)
 
     @final
+    @binprovider_cache
     @validate_call
-    # @lru_cache(maxsize=1024)  (see __init__)
-    def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None) -> Sha256 | None:
+    def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, nocache: bool=False) -> Sha256 | None:
         """Get the sha256 hash of the binary at the given abspath (or equivalent hash of the underlying package)"""
         
-        abspath = abspath or self.get_abspath(bin_name)
+        abspath = abspath or self.get_abspath(bin_name, nocache=nocache)
         if not abspath or not os.access(abspath, os.R_OK):
             return None
         
@@ -513,13 +538,13 @@ class BinProvider(BaseModel):
         return TypeAdapter(Sha256).validate_python(hash_sha256.hexdigest())
 
     @final
+    @binprovider_cache
     @validate_call
-    # @lru_cache(maxsize=1024)  (see __init__)
-    def get_abspath(self, bin_name: BinName, quiet: bool=True) -> HostBinPath | None:
+    def get_abspath(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> HostBinPath | None:
         self.setup_PATH()
         abspath = None
         try:
-            abspath = self._call_handler_for_action(bin_name=bin_name, handler_type='abspath')
+            abspath = cast(AbspathFuncReturnValue, self._call_handler_for_action(bin_name=bin_name, handler_type='abspath'))
         except Exception:
             if not quiet:
                 raise
@@ -529,9 +554,9 @@ class BinProvider(BaseModel):
         return result
 
     @final
+    @binprovider_cache
     @validate_call
-    # @lru_cache(maxsize=1024)  (see __init__)
-    def get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, quiet: bool=True) -> SemVer | None:
+    def get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, quiet: bool=True, nocache: bool=False) -> SemVer | None:
         version = None
         try:
             version = cast(VersionFuncReturnValue, self._call_handler_for_action(bin_name=bin_name, handler_type='version', abspath=abspath))
@@ -548,9 +573,9 @@ class BinProvider(BaseModel):
         return version
 
     @final
+    @binprovider_cache
     @validate_call
-    # @lru_cache(maxsize=1024)  (see __init__)
-    def get_packages(self, bin_name: BinName, quiet: bool=True) -> InstallArgs:
+    def get_packages(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> InstallArgs:
         packages = None
         try:
             packages = cast(PackagesFuncReturnValue, self._call_handler_for_action(bin_name=bin_name, handler_type='packages'))
@@ -568,12 +593,12 @@ class BinProvider(BaseModel):
         pass
 
     @final
+    @binprovider_cache
     @validate_call
-    # @lru_cache(maxsize=1024)  (see __init__)
-    def install(self, bin_name: BinName, quiet: bool=False) -> ShallowBinary | None:
+    def install(self, bin_name: BinName, quiet: bool=False, nocache: bool=False) -> ShallowBinary | None:
         self.setup()
         
-        packages = self.get_packages(bin_name, quiet=quiet)
+        packages = self.get_packages(bin_name, quiet=quiet, nocache=nocache)
         
         self.setup_PATH()
         install_log = None
@@ -590,20 +615,20 @@ class BinProvider(BaseModel):
             return ShallowBinary(
                 name=bin_name,
                 binprovider=self,
-                abspath=Path(shutil.which(bin_name) or '/usr/bin/true'),
-                version=cast(SemVer, SemVer('999.999.999')),
+                abspath=Path(shutil.which(bin_name) or UNKNOWN_ABSPATH),
+                version=cast(SemVer, UNKNOWN_VERSION),
                 sha256=UNKNOWN_SHA256, binproviders=[self],
             )
 
-        installed_abspath = self.get_abspath(bin_name, quiet=quiet)
+        installed_abspath = self.get_abspath(bin_name, quiet=quiet, nocache=nocache)
         if not quiet:
             assert installed_abspath, f'{self.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={self.PATH} LOG={install_log}'
 
-        installed_version = self.get_version(bin_name, abspath=installed_abspath, quiet=quiet)
+        installed_version = self.get_version(bin_name, abspath=installed_abspath, quiet=quiet, nocache=nocache)
         if not quiet:
             assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
         
-        sha256 = self.get_sha256(bin_name, abspath=installed_abspath) or UNKNOWN_SHA256
+        sha256 = self.get_sha256(bin_name, abspath=installed_abspath, nocache=nocache) or UNKNOWN_SHA256
         
         if (installed_abspath and installed_version):
             # installed binary is valid and ready to use
@@ -622,15 +647,15 @@ class BinProvider(BaseModel):
 
     @final
     @validate_call
-    def load(self, bin_name: BinName, cache: bool=False, quiet: bool=True) -> ShallowBinary | None:
+    def load(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> ShallowBinary | None:
         installed_abspath = None
         installed_version = None
 
-        installed_abspath = installed_abspath or self.get_abspath(bin_name, quiet=quiet)
+        installed_abspath = installed_abspath or self.get_abspath(bin_name, quiet=quiet, nocache=nocache)
         if not installed_abspath:
             return None
 
-        installed_version = installed_version or self.get_version(bin_name, abspath=installed_abspath, quiet=quiet)
+        installed_version = installed_version or self.get_version(bin_name, abspath=installed_abspath, quiet=quiet, nocache=nocache)
         if not installed_version:
             return None
         
@@ -647,10 +672,10 @@ class BinProvider(BaseModel):
 
     @final
     @validate_call
-    def load_or_install(self, bin_name: BinName, cache: bool=False, quiet: bool=False) -> ShallowBinary | None:
-        installed = self.load(bin_name=bin_name, cache=cache, quiet=True)
+    def load_or_install(self, bin_name: BinName, quiet: bool=False, nocache: bool=False) -> ShallowBinary | None:
+        installed = self.load(bin_name=bin_name, quiet=True, nocache=nocache)
         if not installed:
-            installed = self.install(bin_name=bin_name, quiet=quiet)
+            installed = self.install(bin_name=bin_name, quiet=quiet, nocache=nocache)
         return installed
 
 

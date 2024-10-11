@@ -511,13 +511,13 @@ class BinProvider(BaseModel):
     # CALLING API, DONT OVERRIDE THESE:
 
     @final
-    # @binprovider_cache
+    @binprovider_cache
     # @validate_call
     def get_abspaths(self, bin_name: BinName, nocache: bool=False) -> List[HostBinPath]:
         return bin_abspaths(bin_name, PATH=self.PATH)
 
     @final
-    # @binprovider_cache
+    @binprovider_cache
     # @validate_call
     def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, nocache: bool=False) -> Sha256 | None:
         """Get the sha256 hash of the binary at the given abspath (or equivalent hash of the underlying package)"""
@@ -537,7 +537,7 @@ class BinProvider(BaseModel):
         return TypeAdapter(Sha256).validate_python(hash_sha256.hexdigest())
 
     @final
-    # @binprovider_cache
+    @binprovider_cache
     # @validate_call
     def get_abspath(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> HostBinPath | None:
         self.setup_PATH()
@@ -553,7 +553,7 @@ class BinProvider(BaseModel):
         return result
 
     @final
-    # @binprovider_cache
+    @binprovider_cache
     # @validate_call
     def get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, quiet: bool=True, nocache: bool=False) -> SemVer | None:
         version = None
@@ -572,7 +572,7 @@ class BinProvider(BaseModel):
         return version
 
     @final
-    # @binprovider_cache
+    @binprovider_cache
     # @validate_call
     def get_packages(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> InstallArgs:
         packages = None
@@ -592,7 +592,7 @@ class BinProvider(BaseModel):
         pass
 
     @final
-    # @binprovider_cache
+    @binprovider_cache
     # @validate_call
     def install(self, bin_name: BinName, quiet: bool=False, nocache: bool=False) -> ShallowBinary | None:
         self.setup()

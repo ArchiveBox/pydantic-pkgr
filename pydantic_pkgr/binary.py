@@ -1,20 +1,19 @@
 __package__ = 'pydantic_pkgr'
 
-from typing import Any, Optional, Dict, List, Iterable
+from typing import Any, Optional, Dict, List
 from typing_extensions import Self
 
 from pydantic import Field, model_validator, computed_field, field_validator, validate_call, field_serializer, ConfigDict, InstanceOf
 
 from .semver import SemVer
 from .shallowbinary import ShallowBinary
-from .binprovider import BinProvider, EnvProvider
+from .binprovider import BinProvider, EnvProvider, BinaryOverrides
 from .base_types import (
     BinName,
     bin_abspath,
     bin_abspaths,
     HostBinPath,
     BinProviderName,
-    BinaryOverrides,
     PATHStr,
     Sha256,
 )
@@ -123,17 +122,18 @@ class Binary(ShallowBinary):
 
         raise KeyError(f'{binprovider_name} is not a supported BinProvider for Binary(name={self.name})')
 
-    # @validate_call
-    def install(self, binproviders: Optional[Iterable[BinProviderName]]=None, **extra_overrides) -> Self:
+    @validate_call
+    def install(self, binproviders: Optional[List[BinProviderName]]=None, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if binproviders is not None and len(list(binproviders)) == 0:
             return self
         
+        
         inner_exc = Exception('No providers were available')
         errors = {}
         for binprovider in self.binproviders_supported:
-            if binproviders and binprovider.name not in binproviders:
+            if binproviders and (binprovider.name not in binproviders):
                 continue
             
             try:
@@ -151,14 +151,15 @@ class Binary(ShallowBinary):
                     })
             except Exception as err:
                 # print(err)
+                # raise
                 inner_exc = err
                 errors[binprovider.name] = str(err)
                 
         provider_names = ', '.join(binproviders or [p.name for p in self.binproviders_supported])
         raise Exception(f'None of the configured providers ({provider_names}) were able to install binary: {self.name} ERRORS={errors}') from inner_exc
 
-    # @validate_call
-    def load(self, binproviders: Optional[Iterable[BinProviderName]]=None, nocache=False, **extra_overrides) -> Self:
+    @validate_call
+    def load(self, binproviders: Optional[List[BinProviderName]]=None, nocache=False, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         # if we're already loaded, skip loading
@@ -168,7 +169,6 @@ class Binary(ShallowBinary):
         # if binproviders list is passed but it's empty, skip loading
         if binproviders is not None and len(list(binproviders)) == 0:
             return self
-        
 
         inner_exc = Exception('No providers were available')
         errors = {}
@@ -199,8 +199,8 @@ class Binary(ShallowBinary):
         provider_names = ', '.join(binproviders or [p.name for p in self.binproviders_supported])
         raise Exception(f'None of the configured providers ({provider_names}) were able to load binary: {self.name} ERRORS={errors}') from inner_exc
 
-    # @validate_call
-    def load_or_install(self, binproviders: Optional[Iterable[BinProviderName]]=None, nocache=False, **extra_overrides) -> Self:
+    @validate_call
+    def load_or_install(self, binproviders: Optional[List[BinProviderName]]=None, nocache: bool=False, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:

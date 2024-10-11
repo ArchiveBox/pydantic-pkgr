@@ -4,14 +4,9 @@ import os
 import shutil
 
 from pathlib import Path
-from typing import List, Tuple, Dict, Callable, Literal, Any, Annotated, Protocol, TYPE_CHECKING, TypedDict, NamedTuple
-from typing_extensions import runtime_checkable
+from typing import List, Tuple, Callable, Any, Annotated
 
-from pydantic import TypeAdapter, AfterValidator, BeforeValidator, ValidationError, validate_call
-
-if TYPE_CHECKING:
-    from .binprovider import BinProvider
-
+from pydantic import TypeAdapter, AfterValidator, BeforeValidator, ValidationError
 
 def validate_binprovider_name(name: str) -> str:
     assert 1 < len(name) < 16, 'BinProvider names must be between 1 and 16 characters long'
@@ -210,56 +205,3 @@ InstallArgs = Annotated[Tuple[str, ...] | List[str], AfterValidator(is_valid_ins
 SelfMethodName = Annotated[str, AfterValidator(is_name_of_method_on_self)]
 
 
-# OVERRIDES Handler types
-
-AbspathFuncReturnValue = str | HostBinPath | None
-VersionFuncReturnValue = str | Tuple[int, ...] | Tuple[str, ...] | NamedTuple | None     # SemVer is a subclass of NamedTuple
-PackagesFuncReturnValue = List[str] | Tuple[str, ...] | str | InstallArgs | None
-InstallFuncReturnValue = str | None
-ProviderFuncReturnValue = AbspathFuncReturnValue | VersionFuncReturnValue | PackagesFuncReturnValue | InstallFuncReturnValue
-
-@runtime_checkable
-class AbspathFuncWithArgs(Protocol):
-    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'AbspathFuncReturnValue':
-        ...
-
-@runtime_checkable
-class VersionFuncWithArgs(Protocol):
-    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'VersionFuncReturnValue':
-        ...
-        
-@runtime_checkable
-class PackagesFuncWithArgs(Protocol):
-    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'PackagesFuncReturnValue':
-        ...
-
-@runtime_checkable
-class InstallFuncWithArgs(Protocol):
-    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'InstallFuncReturnValue':
-        ...
-
-AbspathFuncWithNoArgs = Callable[[], AbspathFuncReturnValue]
-VersionFuncWithNoArgs = Callable[[], VersionFuncReturnValue]
-PackagesFuncWithNoArgs = Callable[[], PackagesFuncReturnValue]
-InstallFuncWithNoArgs = Callable[[], InstallFuncReturnValue]
-
-AbspathHandlerValue = SelfMethodName | AbspathFuncWithNoArgs | AbspathFuncWithArgs | AbspathFuncReturnValue
-VersionHandlerValue = SelfMethodName | VersionFuncWithNoArgs | VersionFuncWithArgs | VersionFuncReturnValue
-PackagesHandlerValue = SelfMethodName | PackagesFuncWithNoArgs | PackagesFuncWithArgs | PackagesFuncReturnValue
-InstallHandlerValue = SelfMethodName | InstallFuncWithNoArgs | InstallFuncWithArgs | InstallFuncReturnValue
-
-HandlerType = Literal['abspath', 'version', 'packages', 'install']
-HandlerValue = AbspathHandlerValue | VersionHandlerValue | PackagesHandlerValue | InstallHandlerValue
-HandlerReturnValue = AbspathFuncReturnValue | VersionFuncReturnValue | PackagesFuncReturnValue | InstallFuncReturnValue
-
-class HandlerDict(TypedDict, total=False):
-    abspath: AbspathHandlerValue
-    version: VersionHandlerValue
-    packages: PackagesHandlerValue
-    install: InstallHandlerValue
-
-# Binary.overrides map BinProviderName:HandlerType:Handler    {'brew': {'packages': [...]}}
-BinaryOverrides = Dict[BinProviderName, HandlerDict]
-
-# BinProvider.overrides map BinName:HandlerType:Handler       {'wget': {'packages': [...]}}
-BinProviderOverrides = Dict[BinName | Literal['*'], HandlerDict]

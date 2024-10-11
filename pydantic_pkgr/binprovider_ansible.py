@@ -5,7 +5,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
 from .binprovider import BinProvider, OPERATING_SYSTEM, DEFAULT_PATH
@@ -34,7 +34,7 @@ ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE = """
 """
 
 
-def ansible_package_install(pkg_names: str | List[str], playbook_template=ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE, installer_module='auto', state='present', quiet=True) -> str:
+def ansible_package_install(pkg_names: str | InstallArgs, playbook_template=ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE, installer_module='auto', state='present', quiet=True) -> str:
     if not ANSIBLE_INSTALLED:
         raise RuntimeError("Ansible is not installed! To fix:\n    pip install ansible ansible-runner") from ANSIBLE_IMPORT_ERROR
 
@@ -100,8 +100,8 @@ class AnsibleProvider(BinProvider):
     ansible_playbook_template: str = ANSIBLE_INSTALL_PLAYBOOK_TEMPLATE
 
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
-        packages = packages or self.on_get_packages(bin_name)
+    def default_install_handler(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
+        packages = packages or self.get_packages(bin_name)
 
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f"{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}")

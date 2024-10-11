@@ -1,12 +1,10 @@
 # pip install django-admin-data-views
 
 from django.http import HttpRequest
-from django.utils.html import format_html, mark_safe
+from django.utils.html import mark_safe
 
 from admin_data_views.typing import TableContext, ItemContext
 from admin_data_views.utils import render_with_table_view, render_with_item_view, ItemLink
-
-from django.utils.module_loading import import_string
 
 from .binary import Binary
 
@@ -48,9 +46,9 @@ def binaries_list_view(request: HttpRequest, **kwargs) -> TableContext:
 
         rows['Binary'].append(ItemLink(binary.name, key=binary.name))
         rows['Found Version'].append(binary.loaded_version)
-        rows['Provided By'].append(binary.loaded_provider)
+        rows['Provided By'].append(binary.loaded_binprovider)
         rows['Found Abspath'].append(binary.loaded_abspath)
-        rows['Overrides'].append(str(binary.provider_overrides))
+        rows['Overrides'].append(str(binary.overrides))
         rows['Description'].append(binary.description)
 
     return TableContext(
@@ -85,8 +83,8 @@ def binary_detail_view(request: HttpRequest, key: str, **kwargs) -> ItemContext:
                     'is_script': binary.is_script,
                     'is_executable': binary.is_executable,
                     'is_valid': binary.is_valid,
-                    'overrides': str(binary.provider_overrides),
-                    'providers': str(binary.providers_supported),
+                    'overrides': str(binary.overrides),
+                    'providers': str(binary.binproviders_supported),
                 },
                 "help_texts": {
                     # TODO

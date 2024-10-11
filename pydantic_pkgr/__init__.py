@@ -8,16 +8,10 @@ from .base_types import (
     HostExistsPath,
     BinDirPath,
     BinProviderName,
-    BinProviderOverrides,
-    BinaryOverrides,
-    ProviderFuncReturnValue,
-    HandlerType,
-    HandlerValue,
-    HandlerDict,
-    HandlerReturnValue,
     bin_name,
     bin_abspath,
     bin_abspaths,
+    func_takes_args_or_kwargs,
 )
 from .semver import SemVer, bin_version
 from .shallowbinary import ShallowBinary
@@ -28,6 +22,13 @@ from .binprovider import (
     DEFAULT_PATH,
     DEFAULT_ENV_PATH,
     PYTHON_BIN_DIR,
+    BinProviderOverrides,
+    BinaryOverrides,
+    ProviderFuncReturnValue,
+    HandlerType,
+    HandlerValue,
+    HandlerDict,
+    HandlerReturnValue,
 )
 from .binary import Binary
 
@@ -81,6 +82,7 @@ __all__ = [
     "bin_name",
     "bin_abspath",
     "bin_abspaths",
+    "func_takes_args_or_kwargs",
     
     # Globals
     "OPERATING_SYSTEM",

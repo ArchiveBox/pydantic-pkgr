@@ -630,11 +630,11 @@ class BinProvider(BaseModel):
                 sha256=UNKNOWN_SHA256, binproviders=[self],
             )
 
-        installed_abspath = self.get_abspath(bin_name, quiet=quiet, nocache=nocache)
+        installed_abspath = self.get_abspath(bin_name, quiet=True, nocache=nocache)
         if not quiet:
             assert installed_abspath, f'{self.__class__.__name__} Unable to find abspath for {bin_name} after installing. PATH={self.PATH} LOG={install_log}'
 
-        installed_version = self.get_version(bin_name, abspath=installed_abspath, quiet=quiet, nocache=nocache)
+        installed_version = self.get_version(bin_name, abspath=installed_abspath, quiet=True, nocache=nocache)
         if not quiet:
             assert installed_version, f'{self.__class__.__name__} Unable to find version for {bin_name} after installing. ABSPATH={installed_abspath} LOG={install_log}'
         
@@ -657,7 +657,7 @@ class BinProvider(BaseModel):
 
     @final
     @validate_call
-    def load(self, bin_name: BinName, quiet: bool=False, nocache: bool=False) -> ShallowBinary | None:
+    def load(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> ShallowBinary | None:
         installed_abspath = self.get_abspath(bin_name, quiet=quiet, nocache=nocache)
         if not installed_abspath:
             return None

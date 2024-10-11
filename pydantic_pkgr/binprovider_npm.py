@@ -19,8 +19,7 @@ from .semver import SemVer
 from .binprovider import BinProvider
 
 # Cache these values globally because they never change at runtime
-_CACHED_GLOBAL_NPM_PREFIX: str | None = None
-_CACHED_LOCAL_NPM_PREFIX: str | None = None
+_CACHED_GLOBAL_NPM_PREFIX: Path | None = None
 _CACHED_HOME_DIR: Path = Path('~').expanduser().absolute()
 
 
@@ -37,6 +36,7 @@ class NpmProvider(BinProvider):
     
     npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']
 
+    _CACHED_LOCAL_NPM_PREFIX: Path | None = None
 
     @computed_field
     @property
@@ -70,23 +70,22 @@ class NpmProvider(BinProvider):
 
     @model_validator(mode='after')
     def load_PATH_from_npm_prefix(self) -> Self:
-        global _CACHED_GLOBAL_NPM_PREFIX
-        global _CACHED_LOCAL_NPM_PREFIX
-        
-        if not self.INSTALLER_BIN_ABSPATH:
-            self.PATH = TypeAdapter(PATHStr).validate_python('')
-            return self
-        
+        self.PATH = self._load_PATH()
+        return self
+    
+    def _load_PATH(self) -> str:
         PATH = self.PATH
-        npm_bin_dirs = set()
+        npm_bin_dirs: set[Path] = set()
+        global _CACHED_GLOBAL_NPM_PREFIX
         
         if self.npm_prefix:
             # restrict PATH to only use npm prefix
-            npm_bin_dirs = {str(self.npm_prefix / 'node_modules/.bin')}
-        else:
+            npm_bin_dirs = {self.npm_prefix / 'node_modules/.bin'}
+        
+        if self.INSTALLER_BIN_ABSPATH:
             # find all local and global npm PATHs
-            npm_local_dir = _CACHED_LOCAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix'], quiet=True).stdout.strip()
-            _CACHED_LOCAL_NPM_PREFIX = npm_local_dir
+            npm_local_dir = self._CACHED_LOCAL_NPM_PREFIX or self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['prefix'], quiet=True).stdout.strip()
+            self._CACHED_LOCAL_NPM_PREFIX = npm_local_dir
 
             # start at npm_local_dir and walk up to $HOME (or /), finding all npm bin dirs along the way
             search_dir = Path(npm_local_dir)
@@ -109,11 +108,13 @@ class NpmProvider(BinProvider):
         for bin_dir in npm_bin_dirs:
             if str(bin_dir) not in PATH:
                 PATH = ':'.join([*PATH.split(':'), str(bin_dir)])
-        self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
-        return self
+        return TypeAdapter(PATHStr).validate_python(PATH)
 
     def setup(self) -> None:
         """create npm install prefix and node_modules_dir if needed"""
+        if not self.PATH or not self._CACHED_LOCAL_NPM_PREFIX:
+            self.PATH = self._load_PATH()
+            
         try:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             os.system(f'chown {self.EUID} "{self.cache_dir}"')

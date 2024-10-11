@@ -70,7 +70,7 @@ class AptProvider(BinProvider):
             self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["update", "-qq"])
             _LAST_UPDATE_CHECK = time.time()
 
-        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", "-y", *packages])
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", "-y", "-qq", "--no-install-recommends", *packages])
         if proc.returncode != 0:
             print(proc.stdout.strip())
             print(proc.stderr.strip())

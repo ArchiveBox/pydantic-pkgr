@@ -54,7 +54,7 @@ if PYTHON_BIN_DIR not in DEFAULT_ENV_PATH:
     DEFAULT_ENV_PATH = PYTHON_BIN_DIR + ":" + DEFAULT_ENV_PATH
 
 UNKNOWN_ABSPATH = Path('/usr/bin/true')
-UNKNOWN_VERSION = SemVer('999.999.999')
+UNKNOWN_VERSION = cast(SemVer, SemVer('999.999.999'))
 
 ################## VALIDATORS #######################################
 
@@ -171,7 +171,7 @@ class ShallowBinary(BaseModel):
     def loaded_respath(self) -> HostBinPath | None:
         return self.loaded_abspath and self.loaded_abspath.resolve()
 
-    @validate_call
+    # @validate_call
     def exec(
         self, bin_name: BinName | HostBinPath | None = None, cmd: Iterable[str | Path | int | float | bool] = (), cwd: str | Path = ".", quiet=False, **kwargs
     ) -> subprocess.CompletedProcess:
@@ -272,9 +272,8 @@ class BinProvider(BaseModel):
         except Exception:
             pass
         
-        fallback_version = cast(SemVer, UNKNOWN_VERSION)  # always return something, not all installers provide a version (e.g. which)
-        version = self.get_version(bin_name=self.INSTALLER_BIN, abspath=abspath) or fallback_version
-        sha256 = self.get_sha256(bin_name=self.INSTALLER_BIN, abspath=abspath) or hashlib.sha256(b'').hexdigest()
+        version = UNKNOWN_VERSION
+        sha256 = UNKNOWN_SHA256
         
         return ShallowBinary(
             name=self.INSTALLER_BIN,
@@ -290,7 +289,7 @@ class BinProvider(BaseModel):
         return bool(self.INSTALLER_BIN_ABSPATH)
 
     @final
-    @validate_call(config={'arbitrary_types_allowed': True})
+    # @validate_call(config={'arbitrary_types_allowed': True})
     def get_provider_with_overrides(self, overrides: Optional[BinProviderOverrides]=None, dry_run: bool=False, install_timeout: int | None=None, version_timeout: int | None=None) -> Self:
         # created an updated copy of the BinProvider with the overrides applied, then get the handlers on it.
         # important to do this so that any subsequent calls to handler functions down the call chain
@@ -323,7 +322,7 @@ class BinProvider(BaseModel):
         return updated_binprovider
 
 
-    @validate_call
+    # @validate_call
     def _get_handler_for_action(self, bin_name: BinName, handler_type: HandlerType) -> Callable[..., HandlerReturnValue]:
         """
         Get the handler func for a given key + Dict of handler callbacks + fallback default handler.
@@ -354,7 +353,7 @@ class BinProvider(BaseModel):
         handler_func: Callable[..., HandlerReturnValue] = lambda: literal_value
         return handler_func
 
-    @validate_call
+    # @validate_call
     def _call_handler_for_action(self, bin_name: BinName, handler_type: HandlerType, **kwargs) -> HandlerReturnValue:
         handler_func: Callable[..., HandlerReturnValue] = self._get_handler_for_action(
             bin_name=bin_name,           # e.g. 'yt-dlp', or 'wget', etc.
@@ -388,7 +387,7 @@ class BinProvider(BaseModel):
     
     # DEFAULT HANDLERS, override these in subclasses as needed:
 
-    @validate_call
+    # @validate_call
     def default_abspath_handler(self, bin_name: BinName | HostBinPath, **context) -> AbspathFuncReturnValue:  # aka str | Path | None
         # print(f'[*] {self.__class__.__name__}: Getting abspath for {bin_name}...')
 
@@ -397,7 +396,7 @@ class BinProvider(BaseModel):
         
         return bin_abspath(bin_name, PATH=self.PATH)
     
-    @validate_call
+    # @validate_call
     def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> VersionFuncReturnValue:  # aka List[str] | Tuple[str, ...]
         
         abspath = abspath or self.get_abspath(bin_name, quiet=True)
@@ -440,13 +439,13 @@ class BinProvider(BaseModel):
             f"Unable to find {bin_name} version from {bin_name} --version, -version or -v output\n{dash_dash_version_out or dash_version_out or dash_v_out}".strip()
         ) from validation_err
 
-    @validate_call
+    # @validate_call
     def default_packages_handler(self, bin_name: BinName, **context) -> PackagesFuncReturnValue:     # aka List[str] aka InstallArgs
         # print(f'[*] {self.__class__.__name__}: Getting install command for {bin_name}')
         # ... install command calculation logic here
         return [bin_name]
 
-    @validate_call
+    # @validate_call
     def default_install_handler(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context) -> InstallFuncReturnValue:      # aka str
         packages = packages or self.get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
@@ -470,7 +469,7 @@ class BinProvider(BaseModel):
             if path not in sys.path:
                 sys.path.insert(0, path)   # e.g. /opt/archivebox/bin:/bin:/usr/local/bin:...
 
-    @validate_call
+    # @validate_call
     def exec(self, bin_name: BinName | HostBinPath, cmd: Iterable[str | Path | int | float | bool]=(), cwd: Path | str='.', quiet=False, **kwargs) -> subprocess.CompletedProcess:
         if shutil.which(str(bin_name)):
             bin_abspath = bin_name
@@ -512,14 +511,14 @@ class BinProvider(BaseModel):
     # CALLING API, DONT OVERRIDE THESE:
 
     @final
-    @binprovider_cache
-    @validate_call
+    # @binprovider_cache
+    # @validate_call
     def get_abspaths(self, bin_name: BinName, nocache: bool=False) -> List[HostBinPath]:
         return bin_abspaths(bin_name, PATH=self.PATH)
 
     @final
-    @binprovider_cache
-    @validate_call
+    # @binprovider_cache
+    # @validate_call
     def get_sha256(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, nocache: bool=False) -> Sha256 | None:
         """Get the sha256 hash of the binary at the given abspath (or equivalent hash of the underlying package)"""
         
@@ -538,8 +537,8 @@ class BinProvider(BaseModel):
         return TypeAdapter(Sha256).validate_python(hash_sha256.hexdigest())
 
     @final
-    @binprovider_cache
-    @validate_call
+    # @binprovider_cache
+    # @validate_call
     def get_abspath(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> HostBinPath | None:
         self.setup_PATH()
         abspath = None
@@ -554,8 +553,8 @@ class BinProvider(BaseModel):
         return result
 
     @final
-    @binprovider_cache
-    @validate_call
+    # @binprovider_cache
+    # @validate_call
     def get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, quiet: bool=True, nocache: bool=False) -> SemVer | None:
         version = None
         try:
@@ -573,8 +572,8 @@ class BinProvider(BaseModel):
         return version
 
     @final
-    @binprovider_cache
-    @validate_call
+    # @binprovider_cache
+    # @validate_call
     def get_packages(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> InstallArgs:
         packages = None
         try:
@@ -593,8 +592,8 @@ class BinProvider(BaseModel):
         pass
 
     @final
-    @binprovider_cache
-    @validate_call
+    # @binprovider_cache
+    # @validate_call
     def install(self, bin_name: BinName, quiet: bool=False, nocache: bool=False) -> ShallowBinary | None:
         self.setup()
         
@@ -646,7 +645,7 @@ class BinProvider(BaseModel):
         return result
 
     @final
-    @validate_call
+    # @validate_call
     def load(self, bin_name: BinName, quiet: bool=True, nocache: bool=False) -> ShallowBinary | None:
         installed_abspath = None
         installed_version = None
@@ -671,7 +670,7 @@ class BinProvider(BaseModel):
         )
 
     @final
-    @validate_call
+    # @validate_call
     def load_or_install(self, bin_name: BinName, quiet: bool=False, nocache: bool=False) -> ShallowBinary | None:
         installed = self.load(bin_name=bin_name, quiet=True, nocache=nocache)
         if not installed:

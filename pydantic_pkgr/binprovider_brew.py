@@ -8,7 +8,7 @@ import platform
 from typing import Optional
 from pathlib import Path
 
-from pydantic import model_validator, TypeAdapter, computed_field
+from pydantic import model_validator, TypeAdapter
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath
 from .semver import SemVer

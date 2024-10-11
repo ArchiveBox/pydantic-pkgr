@@ -128,6 +128,6 @@ class SemVer(SemVerTuple):
     #     )
 
 
-@validate_call
+# @validate_call
 def bin_version(bin_path: HostBinPath, args=("--version",)) -> SemVer | None:
     return SemVer(subprocess.run([str(bin_path), *args], stdout=subprocess.PIPE, text=True).stdout.strip())

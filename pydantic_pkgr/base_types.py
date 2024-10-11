@@ -49,7 +49,7 @@ def func_takes_args_or_kwargs(lambda_func: Callable[..., Any]) -> bool:
     return has_args or has_varargs or has_varkw
 
 
-@validate_call
+# @validate_call
 def bin_name(bin_path_or_name: str | Path) -> str:
     """
     - wget -> wget
@@ -80,7 +80,7 @@ def bin_name(bin_path_or_name: str | Path) -> str:
 
 BinName = Annotated[str, AfterValidator(bin_name)]
 
-@validate_call
+# @validate_call
 def path_is_file(path: Path | str) -> Path:
     path = Path(path) if isinstance(path, str) else path
     assert os.path.isfile(path) and os.access(path, os.R_OK), f'Path is not a file or we dont have permission to read it: {path}'
@@ -88,12 +88,12 @@ def path_is_file(path: Path | str) -> Path:
 
 HostExistsPath = Annotated[Path, AfterValidator(path_is_file)]
 
-@validate_call
+# @validate_call
 def path_is_executable(path: HostExistsPath) -> HostExistsPath:
     assert os.path.isfile(path) and os.access(path, os.X_OK), f'Path is not executable (fix by running chmod +x {path})'
     return path
 
-@validate_call
+# @validate_call
 def path_is_script(path: HostExistsPath) -> HostExistsPath:
     SCRIPT_EXTENSIONS = ('.py', '.js', '.sh')
     assert path.suffix.lower() in SCRIPT_EXTENSIONS, 'Path is not a script (does not end in {})'.format(', '.join(SCRIPT_EXTENSIONS))
@@ -101,7 +101,7 @@ def path_is_script(path: HostExistsPath) -> HostExistsPath:
 
 HostExecutablePath = Annotated[HostExistsPath, AfterValidator(path_is_executable)]
 
-@validate_call
+# @validate_call
 def path_is_abspath(path: Path) -> Path:
     path = path.expanduser().absolute()   # resolve ~/ -> /home/<username/ and ../../
     assert path.resolve()                 # make sure symlinks can be resolved, but dont return resolved link
@@ -112,7 +112,7 @@ HostBinPath = Annotated[HostExistsPath, AfterValidator(path_is_abspath)] # remov
 # not all bins need to be executable to be bins, some are scripts
 
 
-@validate_call
+# @validate_call
 def bin_abspath(bin_path_or_name: str | BinName | Path, PATH: PATHStr | None=None) -> HostBinPath | None:
     assert bin_path_or_name
     if PATH is None:
@@ -155,7 +155,7 @@ def bin_abspath(bin_path_or_name: str | BinName | Path, PATH: PATHStr | None=Non
     except ValidationError:
         return None
 
-@validate_call
+# @validate_call
 def bin_abspaths(bin_path_or_name: BinName | Path, PATH: PATHStr | None=None) -> List[HostBinPath]:
     assert bin_path_or_name
 

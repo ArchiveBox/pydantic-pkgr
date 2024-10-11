@@ -4,6 +4,7 @@ __package__ = "pydantic_pkgr"
 
 import os
 import sys
+import time
 import platform
 from typing import Optional
 from pathlib import Path
@@ -21,6 +22,9 @@ OLD_MACOS_DIR = Path('/usr/local/bin')
 DEFAULT_MACOS_DIR = NEW_MACOS_DIR if platform.machine() == 'arm64' else OLD_MACOS_DIR
 DEFAULT_LINUX_DIR = Path('/home/linuxbrew/.linuxbrew/bin')
 GUESSED_BREW_PREFIX = DEFAULT_MACOS_DIR if OS == 'darwin' else DEFAULT_LINUX_DIR
+
+_LAST_UPDATE_CHECK = None
+UPDATE_CHECK_INTERVAL = 60 * 60 * 24  # 1 day
 
 
 class BrewProvider(BinProvider):
@@ -56,6 +60,8 @@ class BrewProvider(BinProvider):
         return self
 
     def default_install_handler(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
+        global _LAST_UPDATE_CHECK
+
         packages = packages or self.get_packages(bin_name)
 
         if not self.INSTALLER_BIN_ABSPATH:
@@ -76,7 +82,12 @@ class BrewProvider(BinProvider):
             return ansible_package_install(bin_name, installer_module="community.general.homebrew")
 
         # Attempt 3: Fallback to installing manually by calling brew in shell
-        self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["update"])
+        
+        if not _LAST_UPDATE_CHECK or (time.time() - _LAST_UPDATE_CHECK) > UPDATE_CHECK_INTERVAL:
+            # only update if we haven't checked in the last day
+            self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["update"])
+            _LAST_UPDATE_CHECK = time.time()
+            
         proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", *packages])
         if proc.returncode != 0:
             print(proc.stdout.strip())

@@ -3,6 +3,7 @@
 __package__ = "pydantic_pkgr"
 
 import sys
+import time
 import shutil
 from typing import Optional
 
@@ -10,6 +11,9 @@ from pydantic import model_validator, TypeAdapter
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
 from .binprovider import BinProvider
+
+_LAST_UPDATE_CHECK = None
+UPDATE_CHECK_INTERVAL = 60 * 60 * 24  # 1 day
 
 
 class AptProvider(BinProvider):
@@ -39,6 +43,8 @@ class AptProvider(BinProvider):
         return self
 
     def default_install_handler(self, bin_name: BinName, packages: Optional[InstallArgs] = None, **context) -> str:
+        global _LAST_UPDATE_CHECK
+
         packages = packages or self.get_packages(bin_name)
 
         if not (self.INSTALLER_BIN_ABSPATH and shutil.which("dpkg")):
@@ -50,16 +56,20 @@ class AptProvider(BinProvider):
         from .binprovider_pyinfra import PYINFRA_INSTALLED, pyinfra_package_install
 
         if PYINFRA_INSTALLED:
-            return pyinfra_package_install(bin_name, installer_module="operations.apt.packages")
+            return pyinfra_package_install([bin_name], installer_module="operations.apt.packages")
 
         # Attempt 2: Try installing with Ansible
         from .binprovider_ansible import ANSIBLE_INSTALLED, ansible_package_install
 
         if ANSIBLE_INSTALLED:
-            return ansible_package_install(bin_name, installer_module="ansible.builtin.apt")
+            return ansible_package_install([bin_name], installer_module="ansible.builtin.apt")
 
         # Attempt 3: Fallback to installing manually by calling apt in shell
-        self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["update", "-qq"])
+        if not _LAST_UPDATE_CHECK or (time.time() - _LAST_UPDATE_CHECK) > UPDATE_CHECK_INTERVAL:
+            # only update if we haven't checked in the last day
+            self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["update", "-qq"])
+            _LAST_UPDATE_CHECK = time.time()
+
         proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", "-y", *packages])
         if proc.returncode != 0:
             print(proc.stdout.strip())

@@ -159,7 +159,7 @@ curl.exec(['--version'])              # curl 7.81.0 (x86_64-pc-linux-gnu) libcur
 
 ### Example: Finding/Installing django with pip (w/ customized binpath resolution behavior)
 pip = PipProvider(
-    abspath_handler={'*': lambda bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
+    abspath_handler={'*': lambda self, bin_name, **context: inspect.getfile(bin_name)},  # use python inspect to get path instead of os.which
 )
 django_bin = pip.load_or_install('django') # Binary('django', provider=pip)
 print(django_bin.abspath)             # Path('/usr/lib/python3.10/site-packages/django/__init__.py')
@@ -182,19 +182,28 @@ It can define one or more `BinProvider`s that it supports, along with overrides 
 ```python
 from pydantic_pkgr import BinProvider, Binary, BinProviderName, BinName, ProviderLookupDict, SemVer
 
+class CustomBrewProvider(BrewProvider):
+    name: str = 'custom_brew'
+
+    def get_macos_packages(self, bin_name: str, **context) -> List[str]:
+        extra_packages_lookup_table = json.load(Path('macos_packages.json'))
+        return extra_packages_lookup_table.get(platform.machine(), [bin_name])
+
+
 ### Example: Create a re-usable class defining a binary and its providers
 class YtdlpBinary(Binary):
     name: BinName = 'ytdlp'
     description: str = 'YT-DLP (Replacement for YouTube-DL) Media Downloader'
 
-    binproviders_supported: List[BinProvider] = [EnvProvider(), PipProvider(), AptProvider(), BrewProvider()]
+    binproviders_supported: List[BinProvider] = [EnvProvider(), PipProvider(), AptProvider(), CustomBrewProvider()]
     
     # customize installed package names for specific package managers
     provider_overrides: Dict[BinProviderName, ProviderLookupDict] = {
-        'pip': {'packages': lambda: ['yt-dlp[default,curl-cffi]']}},
-        'apt': {'packages': lambda: ['yt-dlp', 'ffmpeg']}},
-        'brew': {'packages': 'some.other.module.get_brew_packages'}},  # also accepts dotted import path to function
+        'pip': {'packages': ['yt-dlp[default,curl-cffi]']}, # can use literal values (packages -> List[str], version -> SemVer, abspath -> Path, install -> str log)
+        'apt': {'packages': lambda: ['yt-dlp', 'ffmpeg']},  # also accepts any pure Callable that returns a list of packages
+        'brew': {'packages': 'self.get_macos_packages'},    # also accepts string reference to function on self (where self is the BinProvider)
     }
+
 
 ytdlp = YtdlpBinary().load_or_install()
 print(ytdlp.binprovider)                  # BrewProvider(...)
@@ -221,10 +230,10 @@ class DockerBinary(Binary):
         },
         'apt': {
             # example: vary installed package name based on your CPU architecture
-            'packages': lambda: {
-                'amd64': 'docker',
-                'armv7l': 'docker-ce',
-                'arm64': 'docker-ce',
+            'packages': {
+                'amd64': ['docker'],
+                'armv7l': ['docker-ce'],
+                'arm64': ['docker-ce'],
             }.get(platform.machine(), 'docker'),
         },
     }

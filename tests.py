@@ -12,7 +12,7 @@ from pathlib import Path
 # from rich import print
 
 from pydantic_pkgr import (
-    BinProvider, EnvProvider, Binary, SemVer, ProviderLookupDict,
+    BinProvider, EnvProvider, Binary, SemVer, BinProviderOverrides,
     PipProvider, NpmProvider, AptProvider, BrewProvider,
 )
 
@@ -92,23 +92,23 @@ class TestBinProvider(unittest.TestCase):
             return '/usr/bin/true'
 
         class CustomProvider(BinProvider):
-            name: str = 'CustomProvider'
+            name: str = 'custom'
 
-            abspath_handler: ProviderLookupDict = {
-                '*': 'self.default_abspath_getter',   # test func referenced via dotted notation on self.
-                'somebin': custom_abspath_getter,     # test func that takes self, bin_name, and **context
-            }
-            version_handler: ProviderLookupDict = {
-                '*': 'self.default_version_getter',
-                'somebin': custom_version_getter,     # test pure func that takes no args
-            }
-            packages_handler: ProviderLookupDict = {
-                '*': 'self.default_packages_getter',
-                'abc': 'self.alternate_packages_getter',
-                'somebin': ['literal', 'return', 'value'],            # test literal return value
-            }
-            install_handler: ProviderLookupDict = {
-                '*': None                             # test no handlers available
+            overrides: BinProviderOverrides = {
+                '*': {
+                    'abspath': 'self.default_abspath_getter',     # test staticmethod referenced via dotted notation on self.
+                    'packages': 'self.default_packages_getter',   # test classmethod referenced via dotted notation on self.
+                    'version': 'self.default_version_getter',     # test normal method referenced via dotted notation on self.
+                    'install': None,                              # test intentionally nulled handler
+                },
+                'somebin': {
+                    'abspath': custom_abspath_getter,             # test external func that takes self, bin_name, and **context
+                    'version': custom_version_getter,             # test external func that takes no args
+                    'packages': ['literal', 'return', 'value'],   # test literal return value
+                },
+                'abc': {
+                    'packages': 'self.alternate_packages_getter', # test classmethod that overrules default handler
+                },
             }
 
             @staticmethod
@@ -116,14 +116,15 @@ class TestBinProvider(unittest.TestCase):
                 TestRecord.called_default_abspath_getter = True
                 return '/bin/bash'
 
-            def default_version_getter(self, bin_name: str, **context):
-                TestRecord.called_default_version_getter = True
-                return '999.999.999'
-
             @classmethod
             def default_packages_getter(cls, bin_name: str, **context):
                 TestRecord.called_default_packages_getter = True
                 return None
+            
+            def default_version_getter(self, bin_name: str, **context):
+                TestRecord.called_default_version_getter = True
+                return '999.999.999'
+
             
             @classmethod
             def alternate_packages_getter(cls, bin_name: str, **context):
@@ -133,7 +134,8 @@ class TestBinProvider(unittest.TestCase):
             def on_install(self, bin_name: str, **context):
                 raise NotImplementedError('whattt')
 
-        provider = CustomProvider(install_handler={'somebin': 'self.on_install_somebin'})
+        provider = CustomProvider()
+        provider._dry_run = True
 
         self.assertFalse(TestRecord.called_default_abspath_getter)
         self.assertFalse(TestRecord.called_default_version_getter)
@@ -155,12 +157,12 @@ class TestBinProvider(unittest.TestCase):
         self.assertEqual(provider.get_version('somebin'), SemVer('1.2.3'))         # test that remote Callable func getter that takes no args works and str result is auto-cast to SemVer
         
         # test default packages getter
-        self.assertEqual(provider.get_packages('doesnotexist'), ['doesnotexist'])  # test that it fallsback to [bin_name] by default if getter returns None
+        self.assertEqual(provider.get_packages('doesnotexist'), ('doesnotexist',))  # test that it fallsback to [bin_name] by default if getter returns None
         self.assertTrue(TestRecord.called_default_packages_getter)
-        self.assertEqual(provider.get_packages('abc'), ['abc', 'def'])             # test that classmethod getter funcs work
+        self.assertEqual(provider.get_packages('abc'), ('abc', 'def'))             # test that classmethod getter funcs work
         
         # test custom packages getter
-        self.assertEqual(provider.get_packages('somebin'), ['literal', 'return', 'value'])  # test that literal return values in overrides work     
+        self.assertEqual(provider.get_packages('somebin'), ('literal', 'return', 'value'))  # test that literal return values in overrides work     
         
         # test install handler
         exc = None
@@ -169,7 +171,7 @@ class TestBinProvider(unittest.TestCase):
         except Exception as err:
             exc = err
         self.assertIsInstance(exc, AssertionError)
-        self.assertTrue('No CustomProvider handler func was found for doesnotexist' in str(exc))
+        self.assertTrue('BinProvider(name=custom) has no install handler implemented for Binary(name=doesnotexist)' in str(exc))
 
 
 class TestBinary(unittest.TestCase):
@@ -275,7 +277,7 @@ class InstallTest(unittest.TestCase):
         binary = Binary(name='doesnotexist', binproviders=[pipprovider])
         binary.install(dry_run=True)
             
-        assert 'DRY RUN' in mock_stderr.getvalue()
+        self.assertIn('DRY RUN', mock_stderr.getvalue())
 
     def test_brew_provider(self):
         # print(provider.PATH)
@@ -283,17 +285,19 @@ class InstallTest(unittest.TestCase):
         os.environ['HOMEBREW_NO_INSTALL_CLEANUP'] = 'True'
         os.environ['HOMEBREW_NO_ENV_HINTS'] = 'True'
 
-        is_on_windows = sys.platform.startswith('win') or os.name == 'nt'
-        is_on_macos = 'darwin' in sys.platform
-        is_on_linux = 'linux' in sys.platform
+        is_on_windows = sys.platform.lower().startswith('win') or os.name == 'nt'
+        is_on_macos = 'darwin' in sys.platform.lower()
+        is_on_linux = 'linux' in sys.platform.lower()
         has_brew = shutil.which('brew') is not None
         # has_apt = shutil.which('dpkg') is not None
         
         provider = BrewProvider()
         if has_brew:
             self.assertTrue(provider.PATH)
+            self.assertTrue(provider.is_valid)
         else:
             self.assertFalse(provider.PATH)
+            self.assertFalse(provider.is_valid)
 
         exception = None
         result = None

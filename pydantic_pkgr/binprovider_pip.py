@@ -7,7 +7,7 @@ import sys
 import site
 import shutil
 import sysconfig
-from platformdirs import user_cache_dir
+from platformdirs import user_cache_path
 
 from pathlib import Path
 from typing import Optional, List, Set
@@ -28,7 +28,8 @@ class PipProvider(BinProvider):
     PATH: PATHStr = ''
     
     pip_venv: Optional[Path] = None                                                         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
-    cache_dir: Path = user_cache_dir(appname='pip', appauthor='pydantic-pkgr')
+    
+    cache_dir: Path = user_cache_path(appname='pip', appauthor='pydantic-pkgr')
     cache_arg: str = f'--cache-dir={cache_dir}'
     
     pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade
@@ -168,11 +169,11 @@ class PipProvider(BinProvider):
                 assert os.path.isfile(venv_pip_path) and os.access(venv_pip_path, os.X_OK), f'could not find pip inside venv after creating it: {self.pip_venv}'
                 self.exec(bin_name=venv_pip_path, cmd=["install", self.cache_arg, "--upgrade", "pip", "setuptools"])   # setuptools is not installed by default after python >= 3.12
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
+    def default_install_handler(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
         if self.pip_venv:
             self.setup()
         
-        packages = packages or self.on_get_packages(bin_name)
+        packages = packages or self.get_packages(bin_name)
         
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(
@@ -191,11 +192,11 @@ class PipProvider(BinProvider):
 
         return proc.stderr.strip() + "\n" + proc.stdout.strip()
 
-    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+    def default_abspath_handler(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
         try:
-            abspath = super().on_get_abspath(bin_name, **context)
+            abspath = super().default_abspath_handler(bin_name, **context)
             if abspath:
-                return abspath
+                return TypeAdapter(HostBinPath).validate_python(abspath)
         except Exception:
             pass
         
@@ -203,7 +204,7 @@ class PipProvider(BinProvider):
             return None
         
         # fallback to using pip show to get the site-packages bin path
-        packages = self.on_get_packages(str(bin_name)) or [str(bin_name)]
+        packages = self.get_packages(str(bin_name)) or [str(bin_name)]
         output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
         try:
             location = [line for line in output_lines if line.startswith('Location: ')][0].split('Location: ', 1)[-1]
@@ -216,12 +217,12 @@ class PipProvider(BinProvider):
         else:
             return None
     
-    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+    def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
-            version =  super().on_get_version(bin_name, abspath, **context)
+            version =  super().default_version_handler(bin_name, abspath, **context)
             if version:
-                return version
+                return SemVer.parse(version)
         except ValueError:
             pass
         
@@ -229,8 +230,9 @@ class PipProvider(BinProvider):
             return None
         
         # fallback to using pip show to get the version
-        package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]   # assume last package in list is the main one
-        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+        packages = self.get_packages(str(bin_name)) or [str(bin_name)]
+        main_package = packages[0]   # assume first package in list is the main one
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', main_package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
         try:
             version_str = [line for line in output_lines if line.startswith('Version: ')][0].split('Version: ', 1)[-1]
             return SemVer.parse(version_str)

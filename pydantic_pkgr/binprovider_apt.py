@@ -38,8 +38,8 @@ class AptProvider(BinProvider):
         self.PATH = TypeAdapter(PATHStr).validate_python(PATH)
         return self
 
-    def on_install(self, bin_name: BinName, packages: Optional[InstallArgs] = None, **context) -> str:
-        packages = packages or self.on_get_packages(bin_name)
+    def default_install_handler(self, bin_name: BinName, packages: Optional[InstallArgs] = None, **context) -> str:
+        packages = packages or self.get_packages(bin_name)
 
         if not (self.INSTALLER_BIN_ABSPATH and shutil.which("dpkg")):
             raise Exception(f"{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}")

@@ -11,7 +11,7 @@ from typing import Optional, List
 from typing_extensions import Self
 
 from pydantic import model_validator, TypeAdapter, computed_field
-from platformdirs import user_cache_dir
+from platformdirs import user_cache_path
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs, HostBinPath, bin_abspath
 from .semver import SemVer
@@ -30,7 +30,8 @@ class NpmProvider(BinProvider):
     PATH: PATHStr = ''
     
     npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
-    cache_dir: Path = user_cache_dir(appname='npm', appauthor='pydantic-pkgr')
+    
+    cache_dir: Path = user_cache_path(appname='npm', appauthor='pydantic-pkgr')
     cache_arg: str = f'--cache={cache_dir}'
     
     npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']
@@ -122,10 +123,10 @@ class NpmProvider(BinProvider):
         if self.npm_prefix:
             (self.npm_prefix / 'node_modules/.bin').mkdir(parents=True, exist_ok=True)
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
+    def default_install_handler(self, bin_name: str, packages: Optional[InstallArgs]=None, **context) -> str:
         self.setup()
         
-        packages = packages or self.on_get_packages(bin_name)
+        packages = packages or self.get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.__class__.__name__} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
         
@@ -146,12 +147,12 @@ class NpmProvider(BinProvider):
         
         return proc.stderr.strip() + '\n' + proc.stdout.strip()
     
-    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+    def default_abspath_handler(self, bin_name: BinName, **context) -> HostBinPath | None:
         # print(self.__class__.__name__, 'on_get_abspath', bin_name)
         try:
-            abspath = super().on_get_abspath(bin_name, **context)
+            abspath = super().default_abspath_handler(bin_name, **context)
             if abspath:
-                return abspath
+                return TypeAdapter(HostBinPath).validate_python(abspath)
         except Exception:
             pass
         
@@ -160,22 +161,25 @@ class NpmProvider(BinProvider):
         
         # fallback to using npm show to get alternate binary names based on the package
         try:
-            package = (self.get_packages(str(bin_name)) or [str(bin_name)])[-1]  # assume last package in list is the main one
-            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
-            bin_name = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(', ')[0]
-            abspath = bin_abspath(bin_name, PATH=self.PATH)
+            packages = self.get_packages(str(bin_name)) or [str(bin_name)]
+            main_package = packages[0]   # assume first package in list is the main one
+            output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', main_package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+            # bin: mercury-parser, postlight-parser
+            bin_names = [line for line in output_lines if line.startswith('bin: ')][0].split('bin: ', 1)[-1].split(',')
+            main_bin = bin_names[0]  # assumes first bin name listed is the main one
+            abspath = bin_abspath(main_bin, PATH=self.PATH)
             if abspath:
                 return TypeAdapter(HostBinPath).validate_python(abspath)
         except Exception:
             pass        
         return None
     
-    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+    def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
-            version = super().on_get_version(bin_name, abspath, **context)
+            version = super().default_version_handler(bin_name, abspath, **context)
             if version:
-                return version
+                return SemVer.parse(version)
         except ValueError:
             pass
         
@@ -184,13 +188,14 @@ class NpmProvider(BinProvider):
         
         # fallback to using npm list to get the installed package version
         try:
-            package = (self.get_packages(str(bin_name), **context) or [str(bin_name)])[-1]  # assume last package in list is the main one
+            packages = self.get_packages(str(bin_name), **context) or [str(bin_name)]
+            main_package = packages[0]  # assume first package in list is the main one
             
             # remove the package version if it exists "@postslight/parser@^1.2.3" -> "@postlight/parser"
-            if package[0] == '@':
-                package = '@' + package[1:].split('@', 1)[0]
+            if main_package[0] == '@':
+                package = '@' + main_package[1:].split('@', 1)[0]
             else:
-                package = package.split('@', 1)[0]
+                package = main_package.split('@', 1)[0]
                 
             # npm list --depth=0 "@postlight/parser"
             # (dont use 'npm info @postlight/parser version', it shows *any* availabe version, not installed version)

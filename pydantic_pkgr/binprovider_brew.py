@@ -16,7 +16,9 @@ from .binprovider import BinProvider
 
 OS = platform.system().lower()
 
-DEFAULT_MACOS_DIR = Path('/opt/homebrew/bin') if platform.machine() == 'arm64' else Path('/usr/local/bin')
+NEW_MACOS_DIR = Path('/opt/homebrew/bin')
+OLD_MACOS_DIR = Path('/usr/local/bin')
+DEFAULT_MACOS_DIR = NEW_MACOS_DIR if platform.machine() == 'arm64' else OLD_MACOS_DIR
 DEFAULT_LINUX_DIR = Path('/home/linuxbrew/.linuxbrew/bin')
 
 
@@ -24,7 +26,7 @@ class BrewProvider(BinProvider):
     name: BinProviderName = "brew"
     INSTALLER_BIN: BinName = "brew"
     
-    PATH: PATHStr = "/home/linuxbrew/.linuxbrew/bin:/opt/homebrew/bin:/usr/local/bin"
+    PATH: PATHStr = f"{DEFAULT_LINUX_DIR}:{NEW_MACOS_DIR}:{OLD_MACOS_DIR}"
 
     @model_validator(mode="after")
     def load_PATH(self):
@@ -47,8 +49,8 @@ class BrewProvider(BinProvider):
         self.PATH = TypeAdapter(PATHStr).validate_python(':'.join(PATHs))
         return self
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
-        packages = packages or self.on_get_packages(bin_name)
+    def default_install_handler(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
+        packages = packages or self.get_packages(bin_name)
 
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f"{self.__class__.__name__}.INSTALLER_BIN is not available on this host: {self.INSTALLER_BIN}")
@@ -77,7 +79,7 @@ class BrewProvider(BinProvider):
 
         return proc.stderr.strip() + "\n" + proc.stdout.strip()
 
-    def on_get_abspath(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+    def default_abspath_handler(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
         # print(f'[*] {self.__class__.__name__}: Getting abspath for {bin_name}...')
 
         if not self.PATH:
@@ -96,7 +98,7 @@ class BrewProvider(BinProvider):
             return None
         
         # fallback to using brew info to get the Cellar bin path
-        for package in (self.on_get_packages(str(bin_name)) or [str(bin_name)]):
+        for package in (self.get_packages(str(bin_name)) or [str(bin_name)]):
             try:
                 info_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
                 # /opt/homebrew/Cellar/curl/8.10.0 (530 files, 4MB)
@@ -109,10 +111,10 @@ class BrewProvider(BinProvider):
         return None
         
 
-    def on_get_version(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
+    def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
         try:
-            version =  super().on_get_version(bin_name, abspath, **context)
+            version =  self.get_version(bin_name, abspath, **context)
             if version:
                 return version
         except ValueError:
@@ -122,9 +124,10 @@ class BrewProvider(BinProvider):
             return None
         
         # fallback to using brew info to get the version
-        package = (self.on_get_packages(str(bin_name)) or [str(bin_name)])[-1]   # assume last package in list is the main one
+        packages = self.get_packages(str(bin_name)) or [str(bin_name)]
+        main_package = packages[0]   # assume first package in list is the main one
         try:
-            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], quiet=True, timeout=self._version_timeout).stdout.strip()
+            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', main_package], quiet=True, timeout=self._version_timeout).stdout.strip()
             return SemVer.parse(version_str)
         except Exception:
             return None

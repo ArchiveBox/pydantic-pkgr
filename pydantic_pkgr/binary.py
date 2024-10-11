@@ -1,6 +1,6 @@
 __package__ = 'pydantic_pkgr'
 
-from typing import Any, Optional, Dict, List
+from typing import Any, Optional, Dict, List, Iterable
 from typing_extensions import Self
 
 from pydantic import Field, model_validator, computed_field, field_validator, validate_call, field_serializer, ConfigDict, InstanceOf
@@ -14,7 +14,7 @@ from .base_types import (
     bin_abspaths,
     HostBinPath,
     BinProviderName,
-    ProviderLookupDict,
+    BinaryOverrides,
     PATHStr,
     Sha256,
 )
@@ -23,13 +23,13 @@ DEFAULT_PROVIDER = EnvProvider()
 
 
 class Binary(ShallowBinary):
-    model_config = ConfigDict(extra='allow', populate_by_name=True, validate_defaults=True, validate_assignment=True, from_attributes=True, revalidate_instances='always')
+    model_config = ConfigDict(extra='allow', populate_by_name=True, validate_defaults=True, validate_assignment=True, from_attributes=True, revalidate_instances='always', arbitrary_types_allowed=True)
 
     name: BinName = ''
     description: str = ''
 
     binproviders_supported: List[InstanceOf[BinProvider]] = Field(default_factory=lambda : [DEFAULT_PROVIDER], alias='binproviders')
-    provider_overrides: Dict[BinProviderName, ProviderLookupDict] = Field(default_factory=dict, alias='overrides')
+    overrides: BinaryOverrides = Field(default_factory=dict)
     
     loaded_binprovider: Optional[InstanceOf[BinProvider]] = Field(default=None, alias='binprovider')
     loaded_abspath: Optional[HostBinPath] = Field(default=None, alias='abspath')
@@ -51,11 +51,11 @@ class Binary(ShallowBinary):
 
         # pull in any overrides from the binproviders
         for binprovider in self.binproviders_supported:
-            overrides_by_handler = binprovider.get_handlers_for_bin(self.name)
-            if overrides_by_handler:
-                self.provider_overrides[binprovider.name] = {
-                    **overrides_by_handler,
-                    **self.provider_overrides.get(binprovider.name, {}),
+            overrides_for_bin = binprovider.overrides.get(self.name, {})
+            if overrides_for_bin:
+                self.overrides[binprovider.name] = {
+                    **overrides_for_bin,
+                    **self.overrides.get(binprovider.name, {}),
                 }
         return self
 
@@ -67,14 +67,14 @@ class Binary(ShallowBinary):
     def parse_version(cls, value: Any) -> Optional[SemVer]:
         return SemVer(value) if value else None
 
-    @field_serializer('provider_overrides', when_used='json')
-    def serialize_overrides(self, provider_overrides: Dict[BinProviderName, ProviderLookupDict]) -> Dict[BinProviderName, Dict[str, str]]:
+    @field_serializer('overrides', when_used='json')
+    def serialize_overrides(self, overrides: BinaryOverrides) -> Dict[BinProviderName, Dict[str, str]]:
         return {
             binprovider_name: {
-                key: str(val)
-                for key, val in overrides.items()
+                handler_type: str(handler_value)
+                for handler_type, handler_value in binprovider_overrides.items()
             }
-            for binprovider_name, overrides in provider_overrides.items()
+            for binprovider_name, binprovider_overrides in overrides.items()
         }
 
     @computed_field
@@ -116,27 +116,28 @@ class Binary(ShallowBinary):
     def get_binprovider(self, binprovider_name: BinProviderName, **extra_overrides) -> InstanceOf[BinProvider]:
         for binprovider in self.binproviders_supported:
             if binprovider.name == binprovider_name:
-                overrides = self.provider_overrides.get(binprovider_name, {})
-                return binprovider.get_provider_with_overrides(overrides={self.name: overrides}, **extra_overrides)
+                overrides_for_binprovider = {
+                    self.name: self.overrides.get(binprovider_name, {})
+                }
+                return binprovider.get_provider_with_overrides(overrides=overrides_for_binprovider, **extra_overrides)
 
         raise KeyError(f'{binprovider_name} is not a supported BinProvider for Binary(name={self.name})')
 
     @validate_call
-    def install(self, binprovider_name: Optional[BinProviderName]=None, **overrides) -> Self:
+    def install(self, binproviders: Optional[Iterable[BinProviderName]]=None, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
-        providers_to_try = self.binproviders_supported
-        if binprovider_name:
-            providers_to_try = [p for p in providers_to_try if p.name == binprovider_name]
-            
-        if not providers_to_try:
+        if binproviders is not None and len(list(binproviders)) == 0:
             return self
         
         inner_exc = Exception('No providers were available')
         errors = {}
-        for binprovider in providers_to_try:
+        for binprovider in self.binproviders_supported:
+            if binproviders and binprovider.name not in binproviders:
+                continue
+            
             try:
-                provider = self.get_binprovider(binprovider_name=binprovider.name, **overrides)
+                provider = self.get_binprovider(binprovider_name=binprovider.name, **extra_overrides)
                 
                 installed_bin = provider.install(self.name)
                 if installed_bin is not None and installed_bin.loaded_abspath:
@@ -146,33 +147,37 @@ class Binary(ShallowBinary):
                         **installed_bin.model_dump(exclude={'binproviders_supported'}),
                         'loaded_binprovider': provider,
                         'binproviders_supported': self.binproviders_supported,
-                        'provider_overrides': self.provider_overrides,
+                        'overrides': self.overrides,
                     })
             except Exception as err:
                 # print(err)
                 inner_exc = err
                 errors[binprovider.name] = str(err)
-        raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to install binary: {self.name} ERRORS={errors}') from inner_exc
+                
+        provider_names = ', '.join(binproviders or [p.name for p in self.binproviders_supported])
+        raise Exception(f'None of the configured providers ({provider_names}) were able to install binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
-    def load(self, cache=False, binprovider_name: Optional[BinProviderName]=None, **overrides) -> Self:
+    def load(self, cache=False, binproviders: Optional[Iterable[BinProviderName]]=None, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
+        # if we're already loaded, skip loading
         if self.is_valid:
             return self
-
-        providers_to_try = self.binproviders_supported
-        if binprovider_name:
-            providers_to_try = [p for p in providers_to_try if p.name == binprovider_name]
-
-        if not providers_to_try:
+        
+        # if binproviders list is passed but it's empty, skip loading
+        if binproviders is not None and len(list(binproviders)) == 0:
             return self
+        
 
         inner_exc = Exception('No providers were available')
         errors = {}
-        for binprovider in providers_to_try:
+        for binprovider in self.binproviders_supported:
+            if binproviders and binprovider.name not in binproviders:
+                continue
+            
             try:
-                provider = self.get_binprovider(binprovider_name=binprovider.name, **overrides)
+                provider = self.get_binprovider(binprovider_name=binprovider.name, **extra_overrides)
                 
                 installed_bin = provider.load(self.name, cache=cache)
                 if installed_bin is not None and installed_bin.loaded_abspath:
@@ -182,7 +187,7 @@ class Binary(ShallowBinary):
                         **installed_bin.model_dump(exclude={'binproviders_supported'}),
                         'loaded_binprovider': provider,
                         'binproviders_supported': self.binproviders_supported,
-                        'provider_overrides': self.provider_overrides,
+                        'overrides': self.overrides,
                     })
                 else:
                     continue
@@ -190,27 +195,28 @@ class Binary(ShallowBinary):
                 # print(err)
                 inner_exc = err
                 errors[binprovider.name] = str(err)
-        raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to load binary: {self.name} ERRORS={errors}') from inner_exc
+        
+        provider_names = ', '.join(binproviders or [p.name for p in self.binproviders_supported])
+        raise Exception(f'None of the configured providers ({provider_names}) were able to load binary: {self.name} ERRORS={errors}') from inner_exc
 
     @validate_call
-    def load_or_install(self, cache=False, binprovider_name: Optional[BinProviderName]=None, **overrides) -> Self:
+    def load_or_install(self, cache=False, binproviders: Optional[Iterable[BinProviderName]]=None, **extra_overrides) -> Self:
         assert self.name, f'No binary name was provided! {self}'
 
         if self.is_valid:
             return self
 
-        providers_to_try = self.binproviders_supported
-        if binprovider_name:
-            providers_to_try = [p for p in providers_to_try if p.name == binprovider_name]
-
-        if not providers_to_try:
+        if binproviders is not None and len(list(binproviders)) == 0:
             return self
 
         inner_exc = Exception('No providers were available')
         errors = {}
-        for binprovider in providers_to_try:
+        for binprovider in self.binproviders_supported:
+            if binproviders and binprovider.name not in binproviders:
+                continue
+            
             try:
-                provider = self.get_binprovider(binprovider_name=binprovider.name, **overrides)
+                provider = self.get_binprovider(binprovider_name=binprovider.name, **extra_overrides)
                 
                 installed_bin = provider.load_or_install(self.name, cache=cache)
                 if installed_bin is not None and installed_bin.loaded_abspath:
@@ -220,7 +226,7 @@ class Binary(ShallowBinary):
                         **installed_bin.model_dump(exclude={'binproviders_supported'}),
                         'loaded_binprovider': provider,
                         'binproviders_supported': self.binproviders_supported,
-                        'provider_overrides': self.provider_overrides,
+                        'overrides': self.overrides,
                     })
                 else:
                     continue
@@ -230,5 +236,6 @@ class Binary(ShallowBinary):
                 errors[binprovider.name] = str(err)
                 continue
         
-        raise Exception(f'None of the configured providers ({", ".join(p.name for p in providers_to_try)}) were able to find or install binary: {self.name} ERRORS={errors}') from inner_exc
+        provider_names = ', '.join(binproviders or [p.name for p in self.binproviders_supported])
+        raise Exception(f'None of the configured providers ({provider_names}) were able to find or install binary: {self.name} ERRORS={errors}') from inner_exc
         

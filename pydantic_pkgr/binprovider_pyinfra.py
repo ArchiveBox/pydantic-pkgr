@@ -6,7 +6,7 @@ import sys
 import shutil
 from pathlib import Path
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
 from .base_types import BinProviderName, PATHStr, BinName, InstallArgs
 from .binprovider import BinProvider, OPERATING_SYSTEM, DEFAULT_PATH
@@ -30,7 +30,7 @@ except ImportError as err:
 
 
 
-def pyinfra_package_install(pkg_names: str | List[str], installer_module: str = "auto", installer_extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
+def pyinfra_package_install(pkg_names: InstallArgs, installer_module: str = "auto", installer_extra_kwargs: Optional[Dict[str, Any]] = None) -> str:
     if not PYINFRA_INSTALLED:
         raise RuntimeError("Pyinfra is not installed! To fix:\n    pip install pyinfra") from PYINFRA_IMPORT_ERROR
 
@@ -39,7 +39,7 @@ def pyinfra_package_install(pkg_names: str | List[str], installer_module: str = 
     state = State(inventory=inventory, config=config)
 
     if isinstance(pkg_names, str):
-        pkg_names = pkg_names.split(' ')
+        pkg_names = pkg_names.split(' ')   # type: ignore
 
     connect_all(state)
     
@@ -102,8 +102,8 @@ class PyinfraProvider(BinProvider):
     pyinfra_installer_kwargs: Dict[str, Any] = {}
 
 
-    def on_install(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
-        packages = packages or self.on_get_packages(bin_name)
+    def default_install_handler(self, bin_name: str, packages: Optional[InstallArgs] = None, **context) -> str:
+        packages = packages or self.get_packages(bin_name)
 
         return pyinfra_package_install(
             pkg_names=packages,

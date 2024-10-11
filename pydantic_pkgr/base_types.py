@@ -4,9 +4,14 @@ import os
 import shutil
 
 from pathlib import Path
-from typing import List, Dict, Callable, Literal, Any, Annotated
+from typing import List, Tuple, Dict, Callable, Literal, Any, Annotated, Protocol, TYPE_CHECKING, TypedDict, NamedTuple
+from typing_extensions import runtime_checkable
 
 from pydantic import TypeAdapter, AfterValidator, BeforeValidator, ValidationError, validate_call
+
+if TYPE_CHECKING:
+    from .binprovider import BinProvider
+
 
 def validate_binprovider_name(name: str) -> str:
     assert 1 < len(name) < 16, 'BinProvider names must be between 1 and 16 characters long'
@@ -177,8 +182,10 @@ def bin_abspaths(bin_path_or_name: BinName | Path, PATH: PATHStr | None=None) ->
 
 ################## Types ##############################################
 
+UNKNOWN_SHA256 = 'unknown'
+
 def is_valid_sha256(sha256: str) -> str:
-    if sha256 == 'unknown':
+    if sha256 == UNKNOWN_SHA256:
         return sha256
     assert len(sha256) == 64
     assert sha256.isalnum()
@@ -186,22 +193,73 @@ def is_valid_sha256(sha256: str) -> str:
 
 Sha256 = Annotated[str, AfterValidator(is_valid_sha256)]
 
-def is_valid_install_args(install_args: List[str]) -> List[str]:
+def is_valid_install_args(install_args: List[str] | Tuple[str, ...] | str) -> Tuple[str, ...]:
     """Make sure a string is a valid install string for a package manager, e.g. ['yt-dlp', 'ffmpeg']"""
+    if isinstance(install_args, str):
+        install_args = [install_args]
     assert install_args
     assert all(len(arg) for arg in install_args)
-    return install_args
+    return tuple(install_args)
 
-def is_valid_python_dotted_import(import_str: str) -> str:
-    assert import_str and import_str.replace('.', '').replace('_', '').isalnum()
-    return import_str
+def is_name_of_method_on_self(method_name: str) -> str:
+    assert method_name.startswith('self.') and method_name.replace('.', '').replace('_', '').isalnum()
+    return method_name
 
-InstallArgs = Annotated[List[str], AfterValidator(is_valid_install_args)]
+InstallArgs = Annotated[Tuple[str, ...], AfterValidator(is_valid_install_args)]
 
-LazyImportStr = Annotated[str, AfterValidator(is_valid_python_dotted_import)]
+SelfMethodName = Annotated[str, AfterValidator(is_name_of_method_on_self)]
 
-ProviderHandler = Callable[..., Any] | Callable[[], Any]                               # must take no args [], or [bin_name: str, **kwargs]
-#ProviderHandlerStr = Annotated[str, AfterValidator(lambda s: s.startswith('self.'))]
-ProviderHandlerRef = LazyImportStr | ProviderHandler
-ProviderLookupDict = Dict[str, ProviderHandlerRef]
+
+# OVERRIDES Handler types
+
+AbspathFuncReturnValue = str | HostBinPath | None
+VersionFuncReturnValue = str | Tuple[int, ...] | Tuple[str, ...] | NamedTuple | None     # SemVer is a subclass of NamedTuple
+PackagesFuncReturnValue = List[str] | Tuple[str, ...] | str | InstallArgs | None
+InstallFuncReturnValue = str | None
+ProviderFuncReturnValue = AbspathFuncReturnValue | VersionFuncReturnValue | PackagesFuncReturnValue | InstallFuncReturnValue
+
+@runtime_checkable
+class AbspathFuncWithArgs(Protocol):
+    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'AbspathFuncReturnValue':
+        ...
+
+@runtime_checkable
+class VersionFuncWithArgs(Protocol):
+    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'VersionFuncReturnValue':
+        ...
+        
+@runtime_checkable
+class PackagesFuncWithArgs(Protocol):
+    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'PackagesFuncReturnValue':
+        ...
+
+@runtime_checkable
+class InstallFuncWithArgs(Protocol):
+    def __call__(_self, binprovider: 'BinProvider', bin_name: BinName, **context) -> 'InstallFuncReturnValue':
+        ...
+
+AbspathFuncWithNoArgs = Callable[[], AbspathFuncReturnValue]
+VersionFuncWithNoArgs = Callable[[], VersionFuncReturnValue]
+PackagesFuncWithNoArgs = Callable[[], PackagesFuncReturnValue]
+InstallFuncWithNoArgs = Callable[[], InstallFuncReturnValue]
+
+AbspathHandlerValue = SelfMethodName | AbspathFuncWithNoArgs | AbspathFuncWithArgs | AbspathFuncReturnValue
+VersionHandlerValue = SelfMethodName | VersionFuncWithNoArgs | VersionFuncWithArgs | VersionFuncReturnValue
+PackagesHandlerValue = SelfMethodName | PackagesFuncWithNoArgs | PackagesFuncWithArgs | PackagesFuncReturnValue
+InstallHandlerValue = SelfMethodName | InstallFuncWithNoArgs | InstallFuncWithArgs | InstallFuncReturnValue
+
 HandlerType = Literal['abspath', 'version', 'packages', 'install']
+HandlerValue = AbspathHandlerValue | VersionHandlerValue | PackagesHandlerValue | InstallHandlerValue
+HandlerReturnValue = AbspathFuncReturnValue | VersionFuncReturnValue | PackagesFuncReturnValue | InstallFuncReturnValue
+
+class HandlerDict(TypedDict, total=False):
+    abspath: AbspathHandlerValue
+    version: VersionHandlerValue
+    packages: PackagesHandlerValue
+    install: InstallHandlerValue
+
+# Binary.overrides map BinProviderName:HandlerType:Handler    {'brew': {'packages': [...]}}
+BinaryOverrides = Dict[BinProviderName, HandlerDict]
+
+# BinProvider.overrides map BinName:HandlerType:Handler       {'wget': {'packages': [...]}}
+BinProviderOverrides = Dict[BinName | Literal['*'], HandlerDict]

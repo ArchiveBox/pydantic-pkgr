@@ -97,10 +97,29 @@ class BrewProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             return None
         
+        # fallback to using brew list to get the Cellar bin path (faster than brew info)
+        for package in (self.get_packages(str(bin_name)) or [str(bin_name)]):
+            try:
+                paths = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+                    'list',
+                    '--formulae',
+                    package,
+                ], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+                # /opt/homebrew/Cellar/curl/8.10.1/bin/curl
+                # /opt/homebrew/Cellar/curl/8.10.1/bin/curl-config
+                # /opt/homebrew/Cellar/curl/8.10.1/include/curl/ (12 files)
+                return [line for line in paths if '/Cellar/' in line and line.endswith(f'/bin/{bin_name}')][0].strip()
+            except Exception:
+                pass
+        
         # fallback to using brew info to get the Cellar bin path
         for package in (self.get_packages(str(bin_name)) or [str(bin_name)]):
             try:
-                info_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+                info_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+                    'info',
+                    '--quiet',
+                    package,
+                ], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
                 # /opt/homebrew/Cellar/curl/8.10.0 (530 files, 4MB)
                 cellar_path = [line for line in info_lines if '/Cellar/' in line][0].rsplit(' (', 1)[0]
                 abspath = bin_abspath(bin_name, PATH=f'{cellar_path}/bin')
@@ -113,24 +132,59 @@ class BrewProvider(BinProvider):
 
     def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
-        try:
-            version =  self.get_version(bin_name, abspath=abspath, **context)
+
+        # shortcut: if we already have the Cellar abspath, extract the version from it
+        if abspath and '/Cellar/' in str(abspath):
+            version = str(abspath).rsplit(f'/bin/{bin_name}', 1)[0].rsplit('/', 1)[-1]
             if version:
-                return version
+                try:
+                    return SemVer.parse(version)
+                except ValueError:
+                    pass
+
+        # fallback to running ${bin_name} --version
+        try:
+            version =  super().default_version_handler(bin_name, abspath=abspath, **context)
+            if version:
+                return SemVer.parse(version)
         except ValueError:
             pass
         
         if not self.INSTALLER_BIN_ABSPATH:
             return None
         
-        # fallback to using brew info to get the version
+        # fallback to using brew list to get the package version (faster than brew info)
+        for package in (self.get_packages(str(bin_name)) or [str(bin_name)]):
+            try:
+                paths = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+                    'list',
+                    '--formulae',
+                    package,
+                ], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+                # /opt/homebrew/Cellar/curl/8.10.1/bin/curl
+                cellar_abspath = [line for line in paths if '/Cellar/' in line and line.endswith(f'/bin/{bin_name}')][0].strip()
+                # /opt/homebrew/Cellar/curl/8.10.1/bin/curl -> 8.10.1
+                version = cellar_abspath.rsplit(f'/bin/{bin_name}', 1)[0].rsplit('/', 1)[-1]
+                if version:
+                    return SemVer.parse(version)
+            except Exception:
+                pass
+        
+        # fallback to using brew info to get the version (slowest method of all)
         packages = self.get_packages(str(bin_name)) or [str(bin_name)]
         main_package = packages[0]   # assume first package in list is the main one
         try:
-            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['info', '--quiet', main_package], quiet=True, timeout=self._version_timeout).stdout.strip()
+            version_str = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+                'info',
+                '--quiet',
+                main_package,
+            ], quiet=True, timeout=self._version_timeout).stdout.strip().split('\n')[0]
+            # ==> curl: stable 8.10.1 (bottled), HEAD [keg-only]
             return SemVer.parse(version_str)
         except Exception:
             return None
+        
+        return None
 
 if __name__ == "__main__":
     # Usage:

@@ -182,8 +182,14 @@ class PipProvider(BinProvider):
 
         # print(f'[*] {self.__class__.__name__}: Installing {bin_name}: {self.INSTALLER_BIN_ABSPATH} install {packages}')
 
-
-        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=["install", self.cache_arg, *self.pip_install_args, *packages])
+        # pip install --no-input --cache-dir=<cache_dir> <extra_pip_args> <packages>
+        proc = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+            'install',
+            '--no-input',
+            self.cache_arg,
+            *self.pip_install_args,
+            *packages,
+        ])
 
         if proc.returncode != 0:
             print(proc.stdout.strip())
@@ -193,11 +199,13 @@ class PipProvider(BinProvider):
         return proc.stderr.strip() + "\n" + proc.stdout.strip()
 
     def default_abspath_handler(self, bin_name: BinName | HostBinPath, **context) -> HostBinPath | None:
+        
+        # try searching for the bin_name in BinProvider.PATH first (fastest)
         try:
             abspath = super().default_abspath_handler(bin_name, **context)
             if abspath:
                 return TypeAdapter(HostBinPath).validate_python(abspath)
-        except Exception:
+        except ValueError:
             pass
         
         if not self.INSTALLER_BIN_ABSPATH:
@@ -205,7 +213,15 @@ class PipProvider(BinProvider):
         
         # fallback to using pip show to get the site-packages bin path
         packages = self.get_packages(str(bin_name)) or [str(bin_name)]
-        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', *packages], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+            'show',
+            '--no-input',
+            *packages,
+        ], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+        # For more information, please refer to <http://unlicense.org/>
+        # Location: /Volumes/NVME/Users/squash/Library/Python/3.11/lib/python/site-packages
+        # Requires: brotli, certifi, mutagen, pycryptodomex, requests, urllib3, websockets
+        # Required-by:
         try:
             location = [line for line in output_lines if line.startswith('Location: ')][0].split('Location: ', 1)[-1]
         except IndexError:
@@ -219,6 +235,8 @@ class PipProvider(BinProvider):
     
     def default_version_handler(self, bin_name: BinName, abspath: Optional[HostBinPath]=None, **context) -> SemVer | None:
         # print(f'[*] {self.__class__.__name__}: Getting version for {bin_name}...')
+        
+        # try running <bin_name> --version first (fastest)
         try:
             version =  super().default_version_handler(bin_name, abspath, **context)
             if version:
@@ -229,10 +247,14 @@ class PipProvider(BinProvider):
         if not self.INSTALLER_BIN_ABSPATH:
             return None
         
-        # fallback to using pip show to get the version
+        # fallback to using pip show to get the version (slower)
         packages = self.get_packages(str(bin_name)) or [str(bin_name)]
         main_package = packages[0]   # assume first package in list is the main one
-        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=['show', main_package], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
+        output_lines = self.exec(bin_name=self.INSTALLER_BIN_ABSPATH, cmd=[
+            'show',
+            '--no-input',
+            main_package,
+        ], timeout=self._version_timeout, quiet=True).stdout.strip().split('\n')
         try:
             version_str = [line for line in output_lines if line.startswith('Version: ')][0].split('Version: ', 1)[-1]
             return SemVer.parse(version_str)

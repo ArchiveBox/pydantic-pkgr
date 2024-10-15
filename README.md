@@ -90,10 +90,10 @@ apt.packages(name="Install ffmpeg", packages=['ffmpeg'], _sudo=True)
 
 # our Binary API provides a nice type-checkable, validated, serializable handle
 ffmpeg = Binary(name='ffmpeg').load()
-print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True ...
-print(ffmpeg.loaded_abspaths)       # show all the ffmpeg binaries found in $PATH (in case theres more than one available)
-print(ffmpeg.model_dump_json())     # ... everything can also be dumped/loaded as json
-print(ffmpeg.model_json_schema())   # ... all types provide OpenAPI-ready JSON schemas
+print(ffmpeg)                       # name=ffmpeg abspath=/usr/bin/ffmpeg version=3.3.0 is_valid=True binprovider=apt ...
+print(ffmpeg.abspaths)              # show all the ffmpeg binaries found in $PATH (in case theres more than one available)
+print(ffmpeg.model_dump())          # ... everything can also be dumped/loaded as json-ready dict
+print(ffmpeg.model_json_schema())   # ... OpenAPI-ready JSON schema showing all available fields
 ```
 
 ### Supported Package Managers
@@ -275,13 +275,15 @@ str(SemVer(1, 9, 0))                                                # '1.9.0'
 <br/>
 
 ---
+---
 
+<br/>
 <br/>
 
 
 ## Django Usage
 
-The pydantic ecosystem helps us get auto-generated, type-checked Django fields & forms that support `BinProvider` and `Binary`.
+With a few more packages, you get type-checked Django fields & forms that support `BinProvider` and `Binary`.
 
 > [!TIP]
 > For the full Django experience, we recommend installing these 3 excellent packages:

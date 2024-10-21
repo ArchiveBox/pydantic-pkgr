@@ -6,6 +6,7 @@ __package__ = "pydantic_pkgr"
 import os
 import sys
 import json
+import tempfile
 
 from pathlib import Path
 from typing import Optional, List
@@ -23,6 +24,15 @@ _CACHED_GLOBAL_NPM_PREFIX: Path | None = None
 _CACHED_HOME_DIR: Path = Path('~').expanduser().absolute()
 
 
+USER_CACHE_PATH = Path(tempfile.gettempdir()) / 'npm-cache'
+try:    
+    user_cache_path = user_cache_path(appname='npm', appauthor='pydantic-pkgr', ensure_exists=True)
+    if os.access(user_cache_path, os.W_OK):
+        USER_CACHE_PATH = user_cache_path
+except Exception:
+    pass
+
+
 class NpmProvider(BinProvider):
     name: BinProviderName = 'npm'
     INSTALLER_BIN: BinName = 'npm'
@@ -31,7 +41,7 @@ class NpmProvider(BinProvider):
     
     npm_prefix: Optional[Path] = None                           # None = -g global, otherwise it's a path
     
-    cache_dir: Path = user_cache_path(appname='npm', appauthor='pydantic-pkgr')
+    cache_dir: Path = USER_CACHE_PATH
     cache_arg: str = f'--cache={cache_dir}'
     
     npm_install_args: List[str] = ['--force', '--no-audit', '--no-fund', '--loglevel=error']

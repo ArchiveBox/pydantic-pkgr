@@ -8,6 +8,7 @@ import site
 import shutil
 import sysconfig
 import subprocess
+import tempfile
 from platformdirs import user_cache_path
 
 from pathlib import Path
@@ -22,6 +23,16 @@ from .binprovider import BinProvider, DEFAULT_ENV_PATH
 ACTIVE_VENV = os.getenv('VIRTUAL_ENV', None)
 _CACHED_GLOBAL_PIP_BIN_DIRS: Set[str] | None = None
 
+
+USER_CACHE_PATH = Path(tempfile.gettempdir()) / 'pip-cache'
+try:    
+    user_cache_path = user_cache_path(appname='pip', appauthor='pydantic-pkgr', ensure_exists=True)
+    if os.access(user_cache_path, os.W_OK):
+        USER_CACHE_PATH = user_cache_path
+except Exception:
+    pass
+
+
 class PipProvider(BinProvider):
     name: BinProviderName = "pip"
     INSTALLER_BIN: BinName = "pip"
@@ -30,7 +41,7 @@ class PipProvider(BinProvider):
     
     pip_venv: Optional[Path] = None                                                         # None = system site-packages (user or global), otherwise it's a path e.g. DATA_DIR/lib/pip/venv
     
-    cache_dir: Path = user_cache_path(appname='pip', appauthor='pydantic-pkgr')
+    cache_dir: Path = USER_CACHE_PATH
     cache_arg: str = f'--cache-dir={cache_dir}'
     
     pip_install_args: List[str] = ["--no-input", "--disable-pip-version-check", "--quiet"]  # extra args for pip install ... e.g. --upgrade

@@ -458,6 +458,7 @@ class BinProvider(BaseModel):
 
     # @validate_call
     def default_install_handler(self, bin_name: BinName, packages: Optional[InstallArgs]=None, **context) -> 'InstallFuncReturnValue':      # aka str
+        self.setup()
         packages = packages or self.get_packages(bin_name)
         if not self.INSTALLER_BIN_ABSPATH:
             raise Exception(f'{self.name} install method is not available on this host ({self.INSTALLER_BIN} not found in $PATH)')
